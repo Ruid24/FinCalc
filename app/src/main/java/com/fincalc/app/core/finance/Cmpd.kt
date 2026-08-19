@@ -52,6 +52,7 @@ object Cmpd {
         n: Double, iPercent: Double, pmt: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + fv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
@@ -63,6 +64,7 @@ object Cmpd {
         n: Double, iPercent: Double, pv: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pv + fv) / n
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
@@ -74,6 +76,7 @@ object Cmpd {
         n: Double, iPercent: Double, pv: Double, pmt: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + pv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
@@ -88,6 +91,7 @@ object Cmpd {
         iPercent: Double, pv: Double, pmt: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (iPercent == 0.0) {
             if (pmt == 0.0) mathErr("除以 0")
             val n0 = -(pv + fv) / pmt

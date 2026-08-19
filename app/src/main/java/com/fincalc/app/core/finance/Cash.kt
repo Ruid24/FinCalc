@@ -10,8 +10,9 @@ object Cash {
     /** 最大数据项数 80（CF₀~CF₇₉，CN-63）。 */
     const val MAX_ITEMS = 80
 
-    /** NPV = CF₀ + Σ CFₖ/(1+i)^k，i = I%/100（CN-63）。 */
+    /** NPV = CF₀ + Σ CFₖ/(1+i)^k，i = I%/100（CN-63）。I% ≤ −100 → Math ERROR（CN-168）。 */
     fun npv(iPercent: Double, cashFlows: List<Double>): Double {
+        checkRate(iPercent)
         checkFlows(cashFlows)
         val i = iPercent / 100
         return cashFlows.foldIndexed(0.0) { k, acc, cf -> acc + cf / (1 + i).pow(k) }
@@ -19,6 +20,7 @@ object Cash {
 
     /** NFV = NPV × (1+i)^n，n = 项数 − 1（CN-64）。 */
     fun nfv(iPercent: Double, cashFlows: List<Double>): Double {
+        checkRate(iPercent)
         checkFlows(cashFlows)
         return npv(iPercent, cashFlows) * (1 + iPercent / 100).pow(cashFlows.size - 1)
     }
@@ -49,6 +51,7 @@ object Cash {
      * PBP = n − NPVₙ/(NPVₙ₊₁ − NPVₙ)。NPV 永不变号 → Math ERROR（本计划裁定）。
      */
     fun pbp(iPercent: Double, cashFlows: List<Double>): Double {
+        checkRate(iPercent)
         checkFlows(cashFlows)
         if (cashFlows[0] >= 0) return 0.0
         val i = iPercent / 100
@@ -62,6 +65,10 @@ object Cash {
             prev = acc
         }
         throw CalcException(CalcException.Kind.MATH, "回收期不存在（NPV 未变号）")
+    }
+
+    private fun checkRate(iPercent: Double) {
+        if (iPercent <= -100) throw CalcException(CalcException.Kind.MATH, "I% ≤ −100")
     }
 
     private fun checkFlows(cashFlows: List<Double>) {

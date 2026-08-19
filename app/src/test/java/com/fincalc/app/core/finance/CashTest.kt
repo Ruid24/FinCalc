@@ -81,4 +81,12 @@ class CashTest {
         val flows = List(80) { if (it == 0) -1.0 else 1.0 }
         Cash.npv(3.0, flows)
     }
+
+    @Test
+    fun `rate at or below minus 100 throws math error`() {
+        // CN-168：I% ≤ −100 → Math ERROR（终审发现 npv/nfv/pbp 曾漏校验，静默返回 Infinity）
+        assertThrows(CalcException::class.java) { Cash.npv(-100.0, cfs) }
+        assertThrows(CalcException::class.java) { Cash.nfv(-101.0, cfs) }
+        assertThrows(CalcException::class.java) { Cash.pbp(-100.0, cfs) }
+    }
 }

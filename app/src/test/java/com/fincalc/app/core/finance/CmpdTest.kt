@@ -160,4 +160,12 @@ class CmpdTest {
             Cmpd.solveN(4.0, -1000.0, -100.0, 500.0, 12, 12, end, ci)
         }
     }
+
+    @Test
+    fun `zero interest still validates py cy`() {
+        // 终审发现：I%=0 捷径曾跳过 checkPyCy，py/cy 越界静默通过
+        assertThrows(CalcException::class.java) {
+            Cmpd.solveFV(10.0, 0.0, -1000.0, -100.0, 0, 12, end, ci)
+        }
+    }
 }
