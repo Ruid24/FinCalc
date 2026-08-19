@@ -1,0 +1,11 @@
+# 本地工具链（约 2GB，永不上传）
+.dev/
+# Android/Gradle
+local.properties
+.gradle/
+**/build/
+*.apk
+*.keystore
+# IDE
+.idea/
+*.iml
