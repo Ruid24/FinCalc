@@ -13,15 +13,18 @@
 
 ## 当前进度状态
 
-正在用 subagent-driven-development 流程执行计划 1（共 10 个任务）。**已完成 Task 1-4**：
+计划 1 共 10 个任务。**截至 2026-08-19（台式机续接会话）：Task 1-9 完成并全部通过审查，Task 10（GitHub 推送）经用户决定推迟，待用户发起。** Task 1-4 原始记录（笔记本时期）：
 
 - [x] Task 1: `.gitignore`（含 `.dev/` 排除）+ git 本地身份（Ruid / ruid@localhost），已提交（e286859 之后还有文档提交）
 - [x] Task 2: `.dev/jdk` = Temurin JDK 17.0.20+8，`.dev/env.sh` 已创建
 - [x] Task 3: `.dev/android-sdk`（cmdline-tools/latest 结构 + platform-tools + platforms;android-34 + build-tools;34.0.0，许可证已接受）
 - [x] Task 4: `.dev/gradle-8.9` + 项目根目录 gradle wrapper（`gradlew`、`gradlew.bat`、`gradle/wrapper/*`、单行版 `settings.gradle.kts`）。已验证 `./gradlew --version` = Gradle 8.9 / JVM 17。**Task 4 的 spec/quality 审查已由控制器直接验证通过，但未做独立子代理复审（电量原因从简）**
-- [ ] Task 5-10 未开始（见计划文件，含完整代码与命令）
+- [x] Task 5-9（台式机完成）：每任务均按 subagent-driven-development 走完"实现子代理 → 规格符合性审查 → 代码质量审查"，全部 PASS
+- [x] 构建验收：`testDebugUnitTest` 全绿；`assembleDebug` 产出 9.4MB 调试 APK（apksigner 验证已签名，可安装）；`assembleRelease` 产物名与 CI 工作流引用一致
+- [x] LICENSE 版权人已替换为 GitHub 用户名 **Ruid24**（提交 e8bcd75）
+- [ ] Task 10 推送（用户推迟）：用户建公开空仓库 `FinCalc` → `git remote add origin https://github.com/Ruid24/FinCalc.git` → `git push -u origin main`（credential.helper=manager，推送时会弹浏览器授权窗口）；之后到 Actions 页确认 CI 绿
 
-**未提交的未跟踪文件**（属正常，计划规定 Task 7 统一提交）：`gradle/`、`gradlew`、`gradlew.bat`、`settings.gradle.kts`。
+台式机新增提交（从旧到新）：`ecab392` 脚手架 → `b7fcf56` 非 ASCII 路径修复 → `65cf6db` gradlew 可执行位 → `198a7b2` CI 工作流 → `472b94f` LICENSE+README → `e8bcd75` LICENSE 版权人。**工作区干净，无未跟踪文件。**
 
 ## 本机环境怪癖（台式机可能也有，注意）
 
@@ -31,6 +34,12 @@
 4. `gradle/wrapper/gradle-wrapper.properties` 多一行 `validateDistributionUrl=false`（无害，本机反而需要）。
 5. Windows 版 build-tools 34 的 d8 是 `d8.bat` 不是 `d8.exe`（计划文本笔误，已确认无碍）。
 6. Git Bash 的 `tar` 不能解 zip，用 `unzip`。
+
+## 台式机环境实测（2026-08-19 补充）
+
+7. **网络正常**：Java 进程可直连 dl.google.com / repo.maven.apache.org / github.com（均 200、<1s），Gradle 无需配代理。系统存在代理 127.0.0.1:7897，但 Git Bash 的 curl/git 均未使用，直连即可。笔记本上的"Java 无法直连"怪癖在台式机不存在。
+8. **Bash 工具传输层折叠反斜杠**：命令里写含 `\` 的字面量（如 sed 表达式）要翻倍书写才能等价到达 bash（`s/\\/\\\\/g` 须写成 `s/\\\\/\\\\\\\\/g`），必要时再加 `MSYS2_ARG_CONV_EXCL='*'` 防路径转换。
+9. `gradle.properties` 已含 `android.overridePathCheck=true`（中文路径下一切 gradle 命令的前提，提交 b7fcf56）；`gradlew` 已是 100755 可执行（提交 65cf6db），Linux CI 可直接运行。
 
 ## 迁移包内容
 
