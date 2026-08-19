@@ -55,6 +55,7 @@
 
 - 2026-08-19（Task 3 质量审查发现）：说明书 L5182 将 x² 与 ^( 同列优先权 2、L5174 同级由左至右，真机 `2²^3 = (2²)³ = 64` 合法；初版 Parser 的 `parsePostfix` 循环未为 `^`/`ˣ√` 回流，误拒此类输入（Syntax ERROR）。已修订：`parsePower` 并入 `parsePostfix` 循环（同级左结合，`^` 经 `parsePowerOperand` 保持右结合），并新增回归测试 `postfix followed by caret or xroot`。ParserTest 总数 20。
 - 2026-08-19（Task 4 质量审查发现，三项）：①`checkFinite` 只看 Double 的 Inf（上界约 1.8e308），未落实说明书 CN-165 的 ±9.999999999×10^99 计算范围，且存在中间超范围被后续运算"消化"的逃逸路径（如 `1÷(9E99×9E99)` 返回 0）；已改为 `checkRange`（|v| ≥ 1e100 即 Math ERROR）并对加减乘除/隐式乘结果逐节点检查（CN-169"中间或最后结果超范围"）。②`BigDecimal(v)` 构造器取二进制精确展开，致 `Rnd(2.675)` Fix2 得 2.67（真机 BCD 为 2.68）；已改 `BigDecimal.valueOf`。③`permComb` 大输入空转（约 1e10 次迭代才报错）；已加单调性提前报错。新增 4 个回归测试，EvaluatorTest 总数 26。
+- 2026-08-19（Task 5 质量审查发现）：`factor()` 不包负式，导致 `2(-3)` 排成 `2 -3`（与减法 `2 - 3` 显示歧义）、`2500+(-3)%` 与 `2500+-3%` 同输出不同值等 3 处歧义。已修订：`factor()` 对 `Node.Neg` 同样加 `(...)`（`2 (-3)`、`(-3)\%`、`(-3)!`），既有 11 测试零回归。新增回归测试 `neg operand parenthesized to avoid ambiguity`，LatexTest 总数 12。
 - 2026-08-19：Task 3 计划文本原写"18 个测试"，实际 19 个；Task 4 原写"19 个"，实际 22 个（计数小误，以代码为准）。
 
 ---
@@ -1505,9 +1506,9 @@ object Latex {
         }
     }
 
-    /** 因子位置（乘/隐式乘/阶乘/%/负号/减法右侧）：加减式加 (...) 保持语义 */
+    /** 因子位置（乘/隐式乘/阶乘/%/负号/减法右侧）：加减式与负式加 (...) 保持语义、避免显示歧义（如 2(-3) 不排成 2 -3） */
     private fun factor(n: Node): String = when (n) {
-        is Node.Add, is Node.Sub -> "(${node(n)})"
+        is Node.Add, is Node.Sub, is Node.Neg -> "(${node(n)})"
         else -> node(n)
     }
 
@@ -1640,6 +1641,16 @@ class LatexTest {
     @Test
     fun `multi statement`() {
         assertEquals("3 + 3 : 3 \\times 3", lx("3+3:3×3"))
+    }
+
+    @Test
+    fun `neg operand parenthesized to avoid ambiguity`() {
+        // 审查发现：隐式乘/后缀运算符的负操作数不加括号会与减法等产生显示歧义
+        assertEquals("2 (-3)", lx("2(-3)"))
+        assertEquals("2 \\times (-3)", lx("2×-3"))
+        assertEquals("5 - (-3)", lx("5--3"))
+        assertEquals("2500 + (-3)\\%", lx("2500+(-3)%"))
+        assertEquals("(-3)!", lx("(-3)!"))
     }
 }
 ```
