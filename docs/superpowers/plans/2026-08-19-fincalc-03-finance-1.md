@@ -53,6 +53,7 @@
 
 - 2026-08-19（Task 1 实现子代理回报）：SmplTest 的 SI/SFV 期望常量误用说明书 10 位显示值（−164.3835616 等），与 1e-9 断言容差不匹配（实际全精度 −164.3835616438356，差 4.4e-8）。已修正为全精度期望值并在注释中保留说明书 10 位显示值对照。教训：后续任务涉及"说明书 10 位显示值"的断言，一律用全精度参考值。
 - 2026-08-19（Task 2 质量审查备注，均非阻塞未改码）：①IRR 超过 1000%（如 CF=[−1,20]）时报"区间内无符号变化" Math ERROR 而非静默截断，行为可接受。②潜伏边缘：现金流 ≥78 项且末项非零时 f(−0.9999) 可能因次正规下溢得 Inf，若牛顿法恰又失败转入二分会误报"端点函数值非法"；现实影响面极窄（NPV 函数光滑，牛顿极少失败），如需加固可将 lower 改为 −0.99。③Cnvr 未限制 n 为自然数（输入约束属 UI 层职责）。④Cnvr 在 APR < −100n 且 n 非整数时 pow 得 NaN 静默透出（极端输入，UI 层拦截）。
+- 2026-08-19（Task 3 质量审查发现，N1-N3 已修复）：①I%=0 捷径曾绕过 n≤0 校验（`solvePMT(0,0,…)` 静默返回 −Infinity）；已把 n≤0 检查提前到各 solve* 入口。②solveN 对"投入多拿回少"场景曾按公式直译返回负 n；已加结果非有限或 ≤0 → Math ERROR（CN-168 n≤0 精神的延伸），同时覆盖极偏态 NaN（I%≈1e-14 且走 pow 分支时）。新增 2 个回归测试，CmpdTest 总数 16。备注（信息性未改码）：小数 n 且真利率恰为 0 时 solveI 不返回 0（i=0 极限与特例公式的固有张力，真机按说明书公式推演应同样表现）；主例 solveI 的牛顿法第 3 步越界、实际靠二分兜底收敛（设计内行为）。
 - 2026-08-19（计划编写期自查）：CmpdTest `solve i negative rate` 的 FV 期望值由错误的 800 修正为 1000×0.95¹⁰=598.7369392383787。
 
 ---
@@ -537,31 +538,34 @@ object Cmpd {
         return Coeffs(alpha, beta, gamma)
     }
 
-    /** 求 PV（CN-57）：PV = (−α·PMT − β·FV)/γ；I%=0 时 PV = −(PMT×n + FV)（CN-58）。 */
+    /** 求 PV（CN-57）：PV = (−α·PMT − β·FV)/γ；I%=0 时 PV = −(PMT×n + FV)（CN-58）。n ≤ 0 → Math ERROR（CN-168）。 */
     fun solvePV(
         n: Double, iPercent: Double, pmt: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + fv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
         return (-c.alpha * pmt - c.beta * fv) / c.gamma
     }
 
-    /** 求 PMT（CN-57）：PMT = (−γ·PV − β·FV)/α；I%=0 时 PMT = −(PV+FV)/n。 */
+    /** 求 PMT（CN-57）：PMT = (−γ·PV − β·FV)/α；I%=0 时 PMT = −(PV+FV)/n。n ≤ 0 → Math ERROR。 */
     fun solvePMT(
         n: Double, iPercent: Double, pv: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pv + fv) / n
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
         return (-c.gamma * pv - c.beta * fv) / c.alpha
     }
 
-    /** 求 FV（CN-57）：FV = (−γ·PV − α·PMT)/β；I%=0 时 FV = −(PMT×n + PV)。 */
+    /** 求 FV（CN-57）：FV = (−γ·PV − α·PMT)/β；I%=0 时 FV = −(PMT×n + PV)。n ≤ 0 → Math ERROR。 */
     fun solveFV(
         n: Double, iPercent: Double, pv: Double, pmt: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + pv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
         return (-c.gamma * pv - c.alpha * pmt) / c.beta
@@ -569,7 +573,7 @@ object Cmpd {
 
     /**
      * 求 n（CN-57）：n = log{((1+iS)PMT − FV·i) / ((1+iS)PMT + PV·i)} / log(1+i)。
-     * I%=0 时 n = −(PV+FV)/PMT。真数或分母非法 → Math ERROR。
+     * I%=0 时 n = −(PV+FV)/PMT。真数或分母非法、结果非有限或不为正 → Math ERROR。
      */
     fun solveN(
         iPercent: Double, pv: Double, pmt: Double, fv: Double,
@@ -577,14 +581,18 @@ object Cmpd {
     ): Double {
         if (iPercent == 0.0) {
             if (pmt == 0.0) mathErr("除以 0")
-            return -(pv + fv) / pmt
+            val n0 = -(pv + fv) / pmt
+            if (!n0.isFinite() || n0 <= 0) mathErr("n 无解")
+            return n0
         }
         val i = periodRate(iPercent, py, cy)
         val s = if (payment == Payment.BEGIN) 1.0 else 0.0
         val num = (1 + i * s) * pmt - fv * i
         val den = (1 + i * s) * pmt + pv * i
         if (den == 0.0 || num / den <= 0) mathErr("n 无解")
-        return ln(num / den) / ln(1 + i)
+        val result = ln(num / den) / ln(1 + i)
+        if (!result.isFinite() || result <= 0) mathErr("n 无解")
+        return result
     }
 
     /**
@@ -767,6 +775,26 @@ class CmpdTest {
         assertEquals(CalcException.Kind.ARGUMENT, e.kind)
         assertThrows(CalcException::class.java) {
             Cmpd.periodRate(4.0, 12, 10000)
+        }
+    }
+
+    @Test
+    fun `zero interest with non positive n throws math error`() {
+        // 审查发现：I%=0 捷径曾绕过 n≤0 校验，静默返回 −Infinity
+        assertThrows(CalcException::class.java) {
+            Cmpd.solvePMT(0.0, 0.0, -1000.0, 2000.0, 1, 1, end, ci)
+        }
+        assertThrows(CalcException::class.java) {
+            Cmpd.solvePV(-5.0, 0.0, -100.0, 2000.0, 1, 1, end, ci)
+        }
+    }
+
+    @Test
+    fun `solve n non positive result throws math error`() {
+        // 审查发现：PV=−1000、PMT=−100、FV=+500、I%=4 场景公式直译得负 n（约 −4.89），
+        // 正利率下投入多拿回少属无解除 → Math ERROR（CN-168 n≤0 精神的延伸）
+        assertThrows(CalcException::class.java) {
+            Cmpd.solveN(4.0, -1000.0, -100.0, 500.0, 12, 12, end, ci)
         }
     }
 }
