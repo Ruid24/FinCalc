@@ -37,13 +37,17 @@ object Evaluator {
     /** 逐段求值；每段结束写回 Ans（说明书 CN-42：E 执行计算时更新答案存储器）。 */
     fun evalAll(program: Program, ctx: EvalContext): List<Double> =
         program.statements.map { stmt ->
-            val v = checkFinite(evalNode(stmt, ctx))
+            val v = checkRange(evalNode(stmt, ctx))
             ctx.setVar("Ans", v)
             v
         }
 
-    private fun checkFinite(v: Double): Double =
-        if (v.isNaN() || v.isInfinite()) {
+    /**
+     * 说明书 CN-165：计算范围 ±9.999999999×10^99；CN-169：中间或最后结果超出容许范围即 Math ERROR。
+     * 注意 Double 上界（约 1.8e308）远大于真机范围，故必须显式按 1e100 检查，不能只看 Inf。
+     */
+    private fun checkRange(v: Double): Double =
+        if (v.isNaN() || v.isInfinite() || abs(v) >= 1e100) {
             throw CalcException(CalcException.Kind.MATH, "结果超出计算范围")
         } else {
             v
@@ -63,20 +67,20 @@ object Evaluator {
         is Node.Add -> {
             val l = evalNode(node.l, ctx)
             val r = node.r
-            if (r is Node.Percent) l + l * evalNode(r.e, ctx) / 100 else l + evalNode(r, ctx)
+            checkRange(if (r is Node.Percent) l + l * evalNode(r.e, ctx) / 100 else l + evalNode(r, ctx))
         }
         is Node.Sub -> {
             val l = evalNode(node.l, ctx)
             val r = node.r
-            if (r is Node.Percent) l - l * evalNode(r.e, ctx) / 100 else l - evalNode(r, ctx)
+            checkRange(if (r is Node.Percent) l - l * evalNode(r.e, ctx) / 100 else l - evalNode(r, ctx))
         }
-        is Node.Mul -> evalNode(node.l, ctx) * evalNode(node.r, ctx)
+        is Node.Mul -> checkRange(evalNode(node.l, ctx) * evalNode(node.r, ctx))
         is Node.Div -> {
             val r = evalNode(node.r, ctx)
             if (r == 0.0) mathErr("除以 0")
-            evalNode(node.l, ctx) / r
+            checkRange(evalNode(node.l, ctx) / r)
         }
-        is Node.ImplicitMul -> evalNode(node.l, ctx) * evalNode(node.r, ctx)
+        is Node.ImplicitMul -> checkRange(evalNode(node.l, ctx) * evalNode(node.r, ctx))
         is Node.Neg -> -evalNode(node.e, ctx)
         is Node.Pow -> powChecked(evalNode(node.base, ctx), evalNode(node.exp, ctx))
         is Node.XRoot -> {
@@ -117,7 +121,7 @@ object Evaluator {
                 base.pow(exp)
             }
         }
-        return checkFinite(v)
+        return checkRange(v)
     }
 
     /** 说明书：x! 自变量为 0 ≤ x ≤ 69 的整数。 */
@@ -132,7 +136,7 @@ object Evaluator {
         return r
     }
 
-    /** 说明书：n、r 为整数且 0 ≤ r ≤ n < 1e10。 */
+    /** 说明书：n、r 为整数且 0 ≤ r ≤ n < 1e10，结果须 < 1e100。结果单调不减，超范围即提前报错。 */
     private fun permComb(n0: Double, r0: Double, perm: Boolean): Double {
         if (n0 != floor(n0) || r0 != floor(r0) || n0 < 0 || r0 < 0 || r0 > n0 || n0 >= 1e10) {
             mathErr("nPr/nCr 自变量超出范围")
@@ -142,26 +146,32 @@ object Evaluator {
         if (perm) {
             while (k < r0) {
                 result *= (n0 - k)
+                if (result >= 1e100 || !result.isFinite()) mathErr("结果超出计算范围")
                 k++
             }
         } else {
             val rr = minOf(r0, n0 - r0)
             while (k < rr) {
                 result = result * (n0 - k) / (k + 1)
+                if (result >= 1e100 || !result.isFinite()) mathErr("结果超出计算范围")
                 k++
             }
             result = round(result)
         }
-        return checkFinite(result)
+        return checkRange(result)
     }
 
-    /** Rnd（说明书 CN-128/129）：Norm → 尾数舍入至 10 位；Fix → 指定小数位；Sci → 指定有效位。 */
+    /**
+     * Rnd（说明书 CN-128/129）：Norm → 尾数舍入至 10 位；Fix → 指定小数位；Sci → 指定有效位。
+     * 用 BigDecimal.valueOf（十进制最短表示）而非构造器（二进制精确展开），
+     * 使 Rnd(2.675) 按十进制的 2.675 舍入为 2.68，与真机 BCD 行为一致。
+     */
     private fun rnd(v: Double, mode: DisplayMode): Double = when (mode) {
-        is DisplayMode.Fix -> BigDecimal(v).setScale(mode.digits, RoundingMode.HALF_UP).toDouble()
+        is DisplayMode.Fix -> BigDecimal.valueOf(v).setScale(mode.digits, RoundingMode.HALF_UP).toDouble()
         is DisplayMode.Sci ->
-            if (v == 0.0) 0.0 else BigDecimal(v, MathContext(mode.digits, RoundingMode.HALF_UP)).toDouble()
+            if (v == 0.0) 0.0 else BigDecimal.valueOf(v).round(MathContext(mode.digits, RoundingMode.HALF_UP)).toDouble()
         else ->
-            if (v == 0.0) 0.0 else BigDecimal(v, MathContext(10, RoundingMode.HALF_UP)).toDouble()
+            if (v == 0.0) 0.0 else BigDecimal.valueOf(v).round(MathContext(10, RoundingMode.HALF_UP)).toDouble()
     }
 
     private fun evalFunc(node: Node.Func, ctx: EvalContext): Double {

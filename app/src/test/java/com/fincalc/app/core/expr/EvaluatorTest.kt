@@ -176,6 +176,36 @@ class EvaluatorTest {
         assertEquals(Math.E, ev("e"), 0.0)
     }
 
+    // ---- 计算范围（说明书 CN-165：±9.999999999×10^99；CN-169：中间结果超范围即 Math ERROR） ----
+
+    @Test
+    fun `range enforcement`() {
+        assertEquals(9.9E99, ev("9.9E99"), 1e85)             // 范围内最大量级合法
+        assertMathErr("1E100")                               // 终值超范围
+        assertMathErr("9E99+9E99")                           // 中间加法超范围（1.8E100，Double 内有限但真机报错）
+        assertMathErr("9E99×9E99")                           // 中间乘法超范围
+        assertMathErr("1÷(9E99×9E99)")                       // 中间超范围不得被后续运算"消化"成 0
+    }
+
+    @Test
+    fun `rnd decimal boundary`() {
+        // BigDecimal.valueOf 按十进制舍入：2.675 在真机 BCD 中精确存在 → 2.68
+        val fix2 = DefaultContext(display = DisplayMode.Fix(2))
+        assertEquals(2.68, ev("Rnd(2.675)", fix2), 0.0)
+    }
+
+    @Test
+    fun `perm comb overflow fails fast`() {
+        assertMathErr("999999999 nPr 999999999")             // 结果单调增长，超 1e100 即报错，不空转
+        assertMathErr("999999999 nCr 499999999")
+    }
+
+    @Test
+    fun `chained percent`() {
+        // 卡西欧逐步加成：100+5%+10% = (105)+105×10/100 = 115.5
+        assertEquals(115.5, ev("100+5%+10%"), 1e-9)
+    }
+
     // ---- 错误（说明书 CN-169） ----
 
     @Test
