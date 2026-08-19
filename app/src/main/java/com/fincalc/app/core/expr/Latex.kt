@@ -41,9 +41,9 @@ object Latex {
         }
     }
 
-    /** 因子位置（乘/隐式乘/阶乘/%/负号/减法右侧）：加减式加 (...) 保持语义 */
+    /** 因子位置（乘/隐式乘/阶乘/%/负号/减法右侧）：加减式与负式加 (...) 保持语义、避免显示歧义（如 2(-3) 不排成 2 -3） */
     private fun factor(n: Node): String = when (n) {
-        is Node.Add, is Node.Sub -> "(${node(n)})"
+        is Node.Add, is Node.Sub, is Node.Neg -> "(${node(n)})"
         else -> node(n)
     }
 

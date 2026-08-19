@@ -93,4 +93,14 @@ class LatexTest {
     fun `multi statement`() {
         assertEquals("3 + 3 : 3 \\times 3", lx("3+3:3×3"))
     }
+
+    @Test
+    fun `neg operand parenthesized to avoid ambiguity`() {
+        // 审查发现：隐式乘/后缀运算符的负操作数不加括号会与减法等产生显示歧义
+        assertEquals("2 (-3)", lx("2(-3)"))
+        assertEquals("2 \\times (-3)", lx("2×-3"))
+        assertEquals("5 - (-3)", lx("5--3"))
+        assertEquals("2500 + (-3)\\%", lx("2500+(-3)%"))
+        assertEquals("(-3)!", lx("(-3)!"))
+    }
 }
