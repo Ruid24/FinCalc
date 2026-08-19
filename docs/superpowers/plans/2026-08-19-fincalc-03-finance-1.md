@@ -55,6 +55,7 @@
 - 2026-08-19（Task 2 质量审查备注，均非阻塞未改码）：①IRR 超过 1000%（如 CF=[−1,20]）时报"区间内无符号变化" Math ERROR 而非静默截断，行为可接受。②潜伏边缘：现金流 ≥78 项且末项非零时 f(−0.9999) 可能因次正规下溢得 Inf，若牛顿法恰又失败转入二分会误报"端点函数值非法"；现实影响面极窄（NPV 函数光滑，牛顿极少失败），如需加固可将 lower 改为 −0.99。③Cnvr 未限制 n 为自然数（输入约束属 UI 层职责）。④Cnvr 在 APR < −100n 且 n 非整数时 pow 得 NaN 静默透出（极端输入，UI 层拦截）。
 - 2026-08-19（Task 3 质量审查发现，N1-N3 已修复）：①I%=0 捷径曾绕过 n≤0 校验（`solvePMT(0,0,…)` 静默返回 −Infinity）；已把 n≤0 检查提前到各 solve* 入口。②solveN 对"投入多拿回少"场景曾按公式直译返回负 n；已加结果非有限或 ≤0 → Math ERROR（CN-168 n≤0 精神的延伸），同时覆盖极偏态 NaN（I%≈1e-14 且走 pow 分支时）。新增 2 个回归测试，CmpdTest 总数 16。备注（信息性未改码）：小数 n 且真利率恰为 0 时 solveI 不返回 0（i=0 极限与特例公式的固有张力，真机按说明书公式推演应同样表现）；主例 solveI 的牛顿法第 3 步越界、实际靠二分兜底收敛（设计内行为）。
 - 2026-08-19（Task 4 质量审查备注，均非阻塞未改码）：①pm2 超过还清点（余额变负）后 INT/PRN 拆分不再满足恒等式——说明书未定义该域（AMRT 连 n 都不是输入），当前按原公式机械延续、不崩溃，可接受。②PMT=0 时 INT+PRN≠0，同属说明书未定义域。③测试缺口建议（后续加固）：9999 上界、i=0 零利率摊销断言、P/Y≠C/Y 期望值断言、PMT>0 收款场景。说明书例五量期望值已经"参考值 + 闭式自洽 + 付款合计恒等式"三重验证。
+- 2026-08-19（整体终审发现，已修复）：①Cash.npv/nfv/pbp 曾缺 I%≤−100 校验（CN-168 的利率规则不限模式；I%=−100 曾静默返回 Infinity）；已加 checkRate，新增 CashTest 回归（13 测）。②Cmpd 四个 solve* 的 I%=0 捷径曾跳过 checkPyCy；已在入口统一校验，新增 CmpdTest 回归（17 测）。全量 135 测 0 败。
 - 2026-08-19（计划编写期自查）：CmpdTest `solve i negative rate` 的 FV 期望值由错误的 800 修正为 1000×0.95¹⁰=598.7369392383787。
 
 ---
@@ -276,8 +277,9 @@ object Cash {
     /** 最大数据项数 80（CF₀~CF₇₉，CN-63）。 */
     const val MAX_ITEMS = 80
 
-    /** NPV = CF₀ + Σ CFₖ/(1+i)^k，i = I%/100（CN-63）。 */
+    /** NPV = CF₀ + Σ CFₖ/(1+i)^k，i = I%/100（CN-63）。I% ≤ −100 → Math ERROR（CN-168）。 */
     fun npv(iPercent: Double, cashFlows: List<Double>): Double {
+        checkRate(iPercent)
         checkFlows(cashFlows)
         val i = iPercent / 100
         return cashFlows.foldIndexed(0.0) { k, acc, cf -> acc + cf / (1 + i).pow(k) }
@@ -285,6 +287,7 @@ object Cash {
 
     /** NFV = NPV × (1+i)^n，n = 项数 − 1（CN-64）。 */
     fun nfv(iPercent: Double, cashFlows: List<Double>): Double {
+        checkRate(iPercent)
         checkFlows(cashFlows)
         return npv(iPercent, cashFlows) * (1 + iPercent / 100).pow(cashFlows.size - 1)
     }
@@ -315,6 +318,7 @@ object Cash {
      * PBP = n − NPVₙ/(NPVₙ₊₁ − NPVₙ)。NPV 永不变号 → Math ERROR（本计划裁定）。
      */
     fun pbp(iPercent: Double, cashFlows: List<Double>): Double {
+        checkRate(iPercent)
         checkFlows(cashFlows)
         if (cashFlows[0] >= 0) return 0.0
         val i = iPercent / 100
@@ -328,6 +332,10 @@ object Cash {
             prev = acc
         }
         throw CalcException(CalcException.Kind.MATH, "回收期不存在（NPV 未变号）")
+    }
+
+    private fun checkRate(iPercent: Double) {
+        if (iPercent <= -100) throw CalcException(CalcException.Kind.MATH, "I% ≤ −100")
     }
 
     private fun checkFlows(cashFlows: List<Double>) {
@@ -460,6 +468,14 @@ class CashTest {
         val flows = List(80) { if (it == 0) -1.0 else 1.0 }
         Cash.npv(3.0, flows)
     }
+
+    @Test
+    fun `rate at or below minus 100 throws math error`() {
+        // CN-168：I% ≤ −100 → Math ERROR（终审发现 npv/nfv/pbp 曾漏校验，静默返回 Infinity）
+        assertThrows(CalcException::class.java) { Cash.npv(-100.0, cfs) }
+        assertThrows(CalcException::class.java) { Cash.nfv(-101.0, cfs) }
+        assertThrows(CalcException::class.java) { Cash.pbp(-100.0, cfs) }
+    }
 }
 ```
 
@@ -544,6 +560,7 @@ object Cmpd {
         n: Double, iPercent: Double, pmt: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + fv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
@@ -555,6 +572,7 @@ object Cmpd {
         n: Double, iPercent: Double, pv: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pv + fv) / n
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
@@ -566,6 +584,7 @@ object Cmpd {
         n: Double, iPercent: Double, pv: Double, pmt: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + pv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
@@ -580,6 +599,7 @@ object Cmpd {
         iPercent: Double, pv: Double, pmt: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        checkPyCy(py, cy)
         if (iPercent == 0.0) {
             if (pmt == 0.0) mathErr("除以 0")
             val n0 = -(pv + fv) / pmt
@@ -796,6 +816,14 @@ class CmpdTest {
         // 正利率下投入多拿回少属无解除 → Math ERROR（CN-168 n≤0 精神的延伸）
         assertThrows(CalcException::class.java) {
             Cmpd.solveN(4.0, -1000.0, -100.0, 500.0, 12, 12, end, ci)
+        }
+    }
+
+    @Test
+    fun `zero interest still validates py cy`() {
+        // 终审发现：I%=0 捷径曾跳过 checkPyCy，py/cy 越界静默通过
+        assertThrows(CalcException::class.java) {
+            Cmpd.solveFV(10.0, 0.0, -1000.0, -100.0, 0, 12, end, ci)
         }
     }
 }
