@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FinCalc</string>
+    <string name="placeholder_title">FinCalc — FC-200V style financial calculator (under construction)</string>
+</resources>
