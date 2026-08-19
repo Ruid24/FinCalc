@@ -51,6 +51,11 @@
 - 多语句 → `stmt1 : stmt2`
 - 加括号规则：作为乘/隐式乘/阶乘/%/负号操作数的加减式加 `(...)`；幂底数为加减/负/乘/隐式乘时加 `(...)`；减法右操作数为加减时加 `(...)`
 
+**修订记录（执行期）：**
+
+- 2026-08-19（Task 3 质量审查发现）：说明书 L5182 将 x² 与 ^( 同列优先权 2、L5174 同级由左至右，真机 `2²^3 = (2²)³ = 64` 合法；初版 Parser 的 `parsePostfix` 循环未为 `^`/`ˣ√` 回流，误拒此类输入（Syntax ERROR）。已修订：`parsePower` 并入 `parsePostfix` 循环（同级左结合，`^` 经 `parsePowerOperand` 保持右结合），并新增回归测试 `postfix followed by caret or xroot`。ParserTest 总数 20。
+- 2026-08-19：Task 3 计划文本原写"18 个测试"，实际 19 个（计数小误，以代码为准）。
+
 ---
 
 ### Task 1: 错误模型与求值上下文
@@ -598,9 +603,9 @@ object Parser {
                 parsePostfix(depth)
             }
 
-        /** postfix := power (²|³|⁻¹|!|%)* —— 优先级 2 */
+        /** postfix := primary (²|³|⁻¹|!|%|'^' powerOperand|'ˣ√' '(' expr ')')* —— 优先级 2，同级左结合（^ 经 powerOperand 保持右结合） */
         private fun parsePostfix(depth: Int): Node {
-            var e = parsePower(depth)
+            var e = parsePrimary(depth)
             while (true) {
                 e = when (peek()) {
                     Token.Square -> { next(); Node.Pow(e, Node.Num("2", 2.0)) }
@@ -608,24 +613,16 @@ object Parser {
                     Token.Recip -> { next(); Node.Pow(e, Node.Num("-1", -1.0)) }
                     Token.Bang -> { next(); Node.Fact(e) }
                     Token.Percent -> { next(); Node.Percent(e) }
+                    Token.Caret -> { next(); Node.Pow(e, parsePowerOperand(depth)) }
+                    Token.XRootTok -> {
+                        next()
+                        expectLParen()
+                        val rad = parseExpr(depth + 1)
+                        expectRParen()
+                        Node.XRoot(e, rad)
+                    }
                     else -> return e
                 }
-            }
-        }
-
-        /** power := primary (('^' powerOperand) | ('ˣ√' '(' expr ')'))? —— 优先级 2，^ 右结合 */
-        private fun parsePower(depth: Int): Node {
-            val base = parsePrimary(depth)
-            return when (peek()) {
-                Token.Caret -> { next(); Node.Pow(base, parsePowerOperand(depth)) }
-                Token.XRootTok -> {
-                    next()
-                    expectLParen()
-                    val rad = parseExpr(depth + 1)
-                    expectRParen()
-                    Node.XRoot(base, rad)
-                }
-                else -> base
             }
         }
 
@@ -796,6 +793,19 @@ class ParserTest {
         assertEquals(
             Program(listOf(Node.Percent(n(15.0)))),
             Parser.parse("15%")
+        )
+    }
+
+    @Test
+    fun `postfix followed by caret or xroot`() {
+        // 说明书 L5182：x² 与 ^( 同属优先权 2，同级由左至右 → 2²^3 = (2²)³ = 64
+        assertEquals(
+            Program(listOf(Node.Pow(Node.Pow(n(2.0), n(2.0)), n(3.0)))),
+            Parser.parse("2²^3")
+        )
+        assertEquals(
+            Program(listOf(Node.XRoot(Node.Fact(n(3.0)), n(64.0)))),
+            Parser.parse("3!ˣ√(64)")
         )
     }
 
