@@ -47,31 +47,34 @@ object Cmpd {
         return Coeffs(alpha, beta, gamma)
     }
 
-    /** 求 PV（CN-57）：PV = (−α·PMT − β·FV)/γ；I%=0 时 PV = −(PMT×n + FV)（CN-58）。 */
+    /** 求 PV（CN-57）：PV = (−α·PMT − β·FV)/γ；I%=0 时 PV = −(PMT×n + FV)（CN-58）。n ≤ 0 → Math ERROR（CN-168）。 */
     fun solvePV(
         n: Double, iPercent: Double, pmt: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + fv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
         return (-c.alpha * pmt - c.beta * fv) / c.gamma
     }
 
-    /** 求 PMT（CN-57）：PMT = (−γ·PV − β·FV)/α；I%=0 时 PMT = −(PV+FV)/n。 */
+    /** 求 PMT（CN-57）：PMT = (−γ·PV − β·FV)/α；I%=0 时 PMT = −(PV+FV)/n。n ≤ 0 → Math ERROR。 */
     fun solvePMT(
         n: Double, iPercent: Double, pv: Double, fv: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pv + fv) / n
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
         return (-c.gamma * pv - c.beta * fv) / c.alpha
     }
 
-    /** 求 FV（CN-57）：FV = (−γ·PV − α·PMT)/β；I%=0 时 FV = −(PMT×n + PV)。 */
+    /** 求 FV（CN-57）：FV = (−γ·PV − α·PMT)/β；I%=0 时 FV = −(PMT×n + PV)。n ≤ 0 → Math ERROR。 */
     fun solveFV(
         n: Double, iPercent: Double, pv: Double, pmt: Double,
         py: Int, cy: Int, payment: Payment, dn: OddPeriod
     ): Double {
+        if (n <= 0) mathErr("n ≤ 0")
         if (iPercent == 0.0) return -(pmt * n + pv)
         val c = coeffs(n, periodRate(iPercent, py, cy), payment, dn)
         return (-c.gamma * pv - c.alpha * pmt) / c.beta
@@ -79,7 +82,7 @@ object Cmpd {
 
     /**
      * 求 n（CN-57）：n = log{((1+iS)PMT − FV·i) / ((1+iS)PMT + PV·i)} / log(1+i)。
-     * I%=0 时 n = −(PV+FV)/PMT。真数或分母非法 → Math ERROR。
+     * I%=0 时 n = −(PV+FV)/PMT。真数或分母非法、结果非有限或不为正 → Math ERROR。
      */
     fun solveN(
         iPercent: Double, pv: Double, pmt: Double, fv: Double,
@@ -87,14 +90,18 @@ object Cmpd {
     ): Double {
         if (iPercent == 0.0) {
             if (pmt == 0.0) mathErr("除以 0")
-            return -(pv + fv) / pmt
+            val n0 = -(pv + fv) / pmt
+            if (!n0.isFinite() || n0 <= 0) mathErr("n 无解")
+            return n0
         }
         val i = periodRate(iPercent, py, cy)
         val s = if (payment == Payment.BEGIN) 1.0 else 0.0
         val num = (1 + i * s) * pmt - fv * i
         val den = (1 + i * s) * pmt + pv * i
         if (den == 0.0 || num / den <= 0) mathErr("n 无解")
-        return ln(num / den) / ln(1 + i)
+        val result = ln(num / den) / ln(1 + i)
+        if (!result.isFinite() || result <= 0) mathErr("n 无解")
+        return result
     }
 
     /**

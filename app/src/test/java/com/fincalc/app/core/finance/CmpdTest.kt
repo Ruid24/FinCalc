@@ -140,4 +140,24 @@ class CmpdTest {
             Cmpd.periodRate(4.0, 12, 10000)
         }
     }
+
+    @Test
+    fun `zero interest with non positive n throws math error`() {
+        // 审查发现：I%=0 捷径曾绕过 n≤0 校验，静默返回 −Infinity
+        assertThrows(CalcException::class.java) {
+            Cmpd.solvePMT(0.0, 0.0, -1000.0, 2000.0, 1, 1, end, ci)
+        }
+        assertThrows(CalcException::class.java) {
+            Cmpd.solvePV(-5.0, 0.0, -100.0, 2000.0, 1, 1, end, ci)
+        }
+    }
+
+    @Test
+    fun `solve n non positive result throws math error`() {
+        // 审查发现：PV=−1000、PMT=−100、FV=+500、I%=4 场景公式直译得负 n（约 −4.89），
+        // 正利率下投入多拿回少属无解除 → Math ERROR（CN-168 n≤0 精神的延伸）
+        assertThrows(CalcException::class.java) {
+            Cmpd.solveN(4.0, -1000.0, -100.0, 500.0, 12, 12, end, ci)
+        }
+    }
 }
