@@ -93,6 +93,19 @@ class ParserTest {
     }
 
     @Test
+    fun `postfix followed by caret or xroot`() {
+        // 说明书 L5182：x² 与 ^( 同属优先权 2，同级由左至右 → 2²^3 = (2²)³ = 64
+        assertEquals(
+            Program(listOf(Node.Pow(Node.Pow(n(2.0), n(2.0)), n(3.0)))),
+            Parser.parse("2²^3")
+        )
+        assertEquals(
+            Program(listOf(Node.XRoot(Node.Fact(n(3.0)), n(64.0)))),
+            Parser.parse("3!ˣ√(64)")
+        )
+    }
+
+    @Test
     fun `perm comb are infix above muldiv`() {
         assertEquals(
             Program(listOf(Node.Mul(Node.Perm(n(10.0), n(4.0)), n(2.0)))),

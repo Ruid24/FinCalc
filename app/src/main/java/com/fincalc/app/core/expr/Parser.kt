@@ -88,9 +88,9 @@ object Parser {
                 parsePostfix(depth)
             }
 
-        /** postfix := power (²|³|⁻¹|!|%)* —— 优先级 2 */
+        /** postfix := primary (²|³|⁻¹|!|%|'^' powerOperand|'ˣ√' '(' expr ')')* —— 优先级 2，同级左结合（^ 经 powerOperand 保持右结合） */
         private fun parsePostfix(depth: Int): Node {
-            var e = parsePower(depth)
+            var e = parsePrimary(depth)
             while (true) {
                 e = when (peek()) {
                     Token.Square -> { next(); Node.Pow(e, Node.Num("2", 2.0)) }
@@ -98,24 +98,16 @@ object Parser {
                     Token.Recip -> { next(); Node.Pow(e, Node.Num("-1", -1.0)) }
                     Token.Bang -> { next(); Node.Fact(e) }
                     Token.Percent -> { next(); Node.Percent(e) }
+                    Token.Caret -> { next(); Node.Pow(e, parsePowerOperand(depth)) }
+                    Token.XRootTok -> {
+                        next()
+                        expectLParen()
+                        val rad = parseExpr(depth + 1)
+                        expectRParen()
+                        Node.XRoot(e, rad)
+                    }
                     else -> return e
                 }
-            }
-        }
-
-        /** power := primary (('^' powerOperand) | ('ˣ√' '(' expr ')'))? —— 优先级 2，^ 右结合 */
-        private fun parsePower(depth: Int): Node {
-            val base = parsePrimary(depth)
-            return when (peek()) {
-                Token.Caret -> { next(); Node.Pow(base, parsePowerOperand(depth)) }
-                Token.XRootTok -> {
-                    next()
-                    expectLParen()
-                    val rad = parseExpr(depth + 1)
-                    expectRParen()
-                    Node.XRoot(base, rad)
-                }
-                else -> base
             }
         }
 
