@@ -33,6 +33,8 @@
 
 **修订记录（编写期自查）：**
 
+- 2026-08-20（Task 1 实现子代理回报）：①`invalid dates` 测试的 `1312022.0` 实际解析为合法日期 2022-01-31（7 位数 MDY 拆解偏移），"13 月"需 8 位数 `13122022.0`；已修正并澄清 `1332022.0` 实为"1 月 33 日"用例。②`jdn round trip` 循环守卫调用带范围校验的 `plusDays`，在 2099 年末尾必然抛 ARGUMENT 穿透；已改为以 `minusDays(end, 100)` 预计算安全终点。
+
 - 2026-08-20：①STAT 初稿用 `Entry1`/`Entry2` 两个数据类导致 `count(List<Entry1>)` 与 `count(List<Entry2>)` 等 10 个函数 JVM 泛型签名冲突（编译错误）——已改为单一 `Entry(x, y?=null, freq=1)` 类型（2-VAR 专属函数经 `check2` 要求 y 非空），测试构造器相应更新。②DaysTest 的 JDN 往返测试初稿首迭代越界（1901-01-01 减 100 天）——已改为保持在范围内。③DaysTest 的 31 日规则跨年断言初稿数值错误（61→421）——已修正。④BOND 半年付测试初稿 N=5 系笔误（实际 6），期望值已按公式体系算出（PRC=−97.60774696391445）。
 - 编写期自查方法：全部参考值用 Python 按说明书公式独立计算；SMPL/DAYS 365/CASH NPV/BOND Date PRC 与说明书原文精确吻合（交叉验证公式实现正确性）。
 
@@ -267,12 +269,13 @@ class DaysTest {
 
     @Test
     fun `invalid dates throw argument error`() {
-        assertThrows(CalcException::class.java) { Days.parse(1332022.0, Days.DateFormat.MDY) }   // 13 月
+        assertThrows(CalcException::class.java) { Days.parse(1332022.0, Days.DateFormat.MDY) }   // 1 月 33 日
+        assertThrows(CalcException::class.java) { Days.parse(13122022.0, Days.DateFormat.MDY) }  // 13 月
         assertThrows(CalcException::class.java) { Days.parse(2292023.0, Days.DateFormat.MDY) }   // 2023-02-29
         assertThrows(CalcException::class.java) { Days.parse(1011900.0, Days.DateFormat.MDY) }   // 1900 超范围
         assertThrows(CalcException::class.java) { Days.parse(1012100.0, Days.DateFormat.MDY) }   // 2100 超范围
         assertThrows(CalcException::class.java) { Days.parse(11052022.5, Days.DateFormat.MDY) }  // 非整数
-        val e = assertThrows(CalcException::class.java) { Days.parse(1312022.0, Days.DateFormat.MDY) }
+        val e = assertThrows(CalcException::class.java) { Days.parse(13122022.0, Days.DateFormat.MDY) }
         assertEquals(CalcException.Kind.ARGUMENT, e.kind)
     }
 
@@ -281,7 +284,8 @@ class DaysTest {
         // JDN 往返一致性（覆盖闰年/世纪年；步长取质数 97 天增加覆盖；保持在合法范围内）
         var d = Days.Date(1901, 1, 1)
         val end = Days.Date(2099, 12, 31)
-        while (Days.plusDays(d, 100) <= end) {
+        val safeEnd = Days.minusDays(end, 100)
+        while (d <= safeEnd) {
             assertEquals(d, Days.minusDays(Days.plusDays(d, 100), 100))
             d = Days.plusDays(d, 97)
         }
