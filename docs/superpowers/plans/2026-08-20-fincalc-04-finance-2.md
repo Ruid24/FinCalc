@@ -33,6 +33,8 @@
 
 **修订记录（编写期自查）：**
 
+- 2026-08-20（Task 5 实现子代理回报）：StatTest 有 4 处"说明书 10 位显示值配过紧容差"（同一类问题，测试在每个失败断言处停下所以分批暴露）：线性回归 B（0.4802217183→0.48022171831695787）与 r（0.9952824846→0.9952824845978723）、e 指数回归 A（30.49758743→30.49758742585542）与 ŷ(16)（13.87915739→13.879157394259396）；已全部改为全精度值并在注释保留显示值对照。计划预期计数 11 修正为实际 10。
+
 - 2026-08-20（Task 4 质量审查备注，均非阻塞未改码）：①全部 13 个反解公式经代数推导+数值往返验证正确；除零守卫恰好落在各定义域奇点上，无漏网。②测试缺口（后续加固批次）：r% 模式三个反解（prcFromQbeRatio/vcuFromQbeRatio/fcFromQbeRatio）与反解侧守卫（dol=1/0、dcl=1/0、dfl=1/0、mos=1、r=100、prc=0）未覆盖。③`prfFromQbe` 命名缺 `Prf` 后缀（可辩解：PRF 仅存在于 PRF 模式无需消歧）。④计划文本"8 个测试"系计数笔误，实际 9 个。
 - 2026-08-20（Task 3）：①实现子代理回报——例1 期望值误用说明书 10 位显示值 −97.6151555，与全精度值 −97.61515550118818 的差 1.19e-9 略超 1e-9 容差；已全精度化（教训同计划 3 SMPL）。②质量审查补测（期望值经审查员与控制器独立复核）：N≤1 短票息期分支（d1=2024-09-01 → −99.69209820123814）、结算日恰为票息日（A=0，应等于 Term n=2）、360 模式日计数（A=166/D=360 → −97.61589449071056）。BondTest 总数 11。
 
@@ -1550,8 +1552,8 @@ class StatTest {
     fun `manual linear regression`() {
         val r = Stat.regress(Stat.RegType.LINEAR, linearData)
         assertEquals(0.5043587805492551, r.a, 1e-12)
-        assertEquals(0.4802217183, r.b, 1e-12)                   // 原文 L4428
-        assertEquals(0.9952824846, r.r!!, 1e-12)                 // 原文 L4432
+        assertEquals(0.48022171831695787, r.b, 1e-12)            // 说明书 10 位显示 0.4802217183（L4428）
+        assertEquals(0.9952824845978723, r.r!!, 1e-12)           // 说明书 10 位显示 0.9952824846（L4432）
         assertNull(r.c)
         assertEquals(-7.297376705, Stat.estimateX(Stat.RegType.LINEAR, r, -3.0), 1e-9)  // 原文 L4440
         assertEquals(1.464802217, Stat.estimateY(Stat.RegType.LINEAR, r, 2.0), 1e-9)    // 原文 L4446
@@ -1598,10 +1600,10 @@ class StatTest {
     @Test
     fun `manual exp regression`() {
         val r = Stat.regress(Stat.RegType.EXP, expData)
-        assertEquals(30.49758743, r.a, 1e-9)                     // 原文 L4888
+        assertEquals(30.49758742585542, r.a, 1e-9)               // 说明书 10 位显示 30.49758743（L4888）
         assertEquals(-0.04920370830766393, r.b, 1e-12)
         assertEquals(-0.997247352, r.r!!, 1e-9)                  // 原文 L4903
-        assertEquals(13.87915739, Stat.estimateY(Stat.RegType.EXP, r, 16.0), 1e-9)   // 原文 L4915
+        assertEquals(13.879157394259396, Stat.estimateY(Stat.RegType.EXP, r, 16.0), 1e-9)   // 说明书显示 13.87915739（L4915）
         assertEquals(8.574868047, Stat.estimateX(Stat.RegType.EXP, r, 20.0), 1e-9)   // 原文 L4926
     }
 
@@ -1700,7 +1702,7 @@ source .dev/env.sh
 ./gradlew testDebugUnitTest --tests "com.fincalc.app.core.finance.StatTest"
 ```
 
-预期：`BUILD SUCCESSFUL`，11 个测试全过。
+预期：`BUILD SUCCESSFUL`，10 个测试全过。
 
 - [ ] **Step 4: 提交**
 
