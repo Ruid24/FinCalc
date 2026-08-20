@@ -33,6 +33,8 @@
 
 **修订记录（编写期自查）：**
 
+- 2026-08-20（Task 3）：①实现子代理回报——例1 期望值误用说明书 10 位显示值 −97.6151555，与全精度值 −97.61515550118818 的差 1.19e-9 略超 1e-9 容差；已全精度化（教训同计划 3 SMPL）。②质量审查补测（期望值经审查员与控制器独立复核）：N≤1 短票息期分支（d1=2024-09-01 → −99.69209820123814）、结算日恰为票息日（A=0，应等于 Term n=2）、360 模式日计数（A=166/D=360 → −97.61589449071056）。BondTest 总数 11。
+
 - 2026-08-20（Task 2 质量审查备注，均非阻塞未改码）：①SYD 的 Z′ 公式经推演在 YR1=12 时精确退化为标准年数总和法（分母 Z 与 Z′ 不一致是说明书本意，L2474）。②FP/DB 的 `(rdv+fv)` 还原经 fv≠0 闭式复核正确。③极端输入 I%≥100 时 FP 的 RDV 可变负——说明书未规定钳制，按公式直译与真机一致。④测试缺口建议（后续加固批次）：fv≠0 用例、FP/SYD/DB 的 j=n+1 分支、MATH 类 kind 断言、n<1/j<1/yr1<1 守卫、YR1=12 下 FP/SYD/DB。
 - 2026-08-20（Task 1 实现子代理回报）：①`invalid dates` 测试的 `1312022.0` 实际解析为合法日期 2022-01-31（7 位数 MDY 拆解偏移），"13 月"需 8 位数 `13122022.0`；已修正并澄清 `1332022.0` 实为"1 月 33 日"用例。②`jdn round trip` 循环守卫调用带范围校验的 `plusDays`，在 2099 年末尾必然抛 ARGUMENT 穿透；已改为以 `minusDays(end, 100)` 预计算安全终点。
 
@@ -740,6 +742,29 @@ class BondTest {
     fun `par bond prices at minus 100`() {
         // 票面利率 = 收益率时平价：PRC = −100（Term、Annual、n=5）
         assertEquals(-100.0, Bond.prcTerm(5, 100.0, 5.0, 5.0, 1), 1e-9)
+    }
+
+    @Test
+    fun `short coupon period branch n le 1`() {
+        // 审查发现补测：N≤1 走 CN-88 短票息期公式。d1=2024-09-01：A=261、D=366（跨闰日）、B=105、N=1
+        val r = Bond.prcDate(Days.Date(2024, 9, 1), d2, 100.0, 3.0, 4.0, 1, days360 = false)
+        assertEquals(-99.69209820123814, r.prc, 1e-9)
+    }
+
+    @Test
+    fun `settlement on coupon date equals term mode`() {
+        // 审查发现补测：d1 恰为票息日（2022-12-15）时 A=0，Date 模式应等于 Term n=2
+        val r = Bond.prcDate(Days.Date(2022, 12, 15), d2, 100.0, 3.0, 4.0, 1, days360 = false)
+        assertEquals(0.0, r.int, 0.0)
+        assertEquals(Bond.prcTerm(2, 100.0, 3.0, 4.0, 1), r.prc, 1e-12)
+    }
+
+    @Test
+    fun `date mode 360 day count`() {
+        // 审查发现补测：360 模式 A=166、D=360、B=194、N=3（30/360 票息期恒 360 天）
+        val r = Bond.prcDate(d1, d2, 100.0, 3.0, 4.0, 1, days360 = true)
+        assertEquals(-97.61589449071056, r.prc, 1e-9)
+        assertEquals(-1.3833333333333333, r.int, 1e-12)
     }
 
     @Test

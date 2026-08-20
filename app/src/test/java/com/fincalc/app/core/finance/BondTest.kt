@@ -64,6 +64,29 @@ class BondTest {
     }
 
     @Test
+    fun `short coupon period branch n le 1`() {
+        // 审查发现补测：N≤1 走 CN-88 短票息期公式。d1=2024-09-01：A=261、D=366（跨闰日）、B=105、N=1
+        val r = Bond.prcDate(Days.Date(2024, 9, 1), d2, 100.0, 3.0, 4.0, 1, days360 = false)
+        assertEquals(-99.69209820123814, r.prc, 1e-9)
+    }
+
+    @Test
+    fun `settlement on coupon date equals term mode`() {
+        // 审查发现补测：d1 恰为票息日（2022-12-15）时 A=0，Date 模式应等于 Term n=2
+        val r = Bond.prcDate(Days.Date(2022, 12, 15), d2, 100.0, 3.0, 4.0, 1, days360 = false)
+        assertEquals(0.0, r.int, 0.0)
+        assertEquals(Bond.prcTerm(2, 100.0, 3.0, 4.0, 1), r.prc, 1e-12)
+    }
+
+    @Test
+    fun `date mode 360 day count`() {
+        // 审查发现补测：360 模式 A=166、D=360、B=194、N=3（30/360 票息期恒 360 天）
+        val r = Bond.prcDate(d1, d2, 100.0, 3.0, 4.0, 1, days360 = true)
+        assertEquals(-97.61589449071056, r.prc, 1e-9)
+        assertEquals(-1.3833333333333333, r.int, 1e-12)
+    }
+
+    @Test
     fun `error conditions`() {
         // CN-168：PRC 计算要求 RDV>0、CPN≥0；YLD 要求 RDV>0、PRC<0
         assertThrows(CalcException::class.java) { Bond.prcTerm(3, 0.0, 3.0, 4.0, 1) }
