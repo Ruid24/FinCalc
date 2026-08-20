@@ -217,7 +217,7 @@ class DaysTest {
 
     @Test
     fun `same example 360 basis`() {
-        // 30/360：360×0 + 30×(4−11) + (27−5) → 跨年：360×1 + 30×(4−11) + 22 = 172
+        // 30/360：360×(2023−2022) + 30×(4−11) + (27−5) = 172
         assertEquals(172, Days.daysBetween(d1, d2, days360 = true))
     }
 
