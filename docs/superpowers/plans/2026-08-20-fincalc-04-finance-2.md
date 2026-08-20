@@ -691,9 +691,10 @@ class BondTest {
 
     @Test
     fun `manual example 1 prc date mode`() {
-        // A=168、D=365、B=197、N=3（日程推算已验证）；PRC 原文 −97.6151555（设定值表）
+        // A=168、D=365、B=197、N=3（日程推算已验证）
+        // 说明书设定值表 10 位显示 PRC=−97.6151555；此处按全精度参考值断言
         val r = Bond.prcDate(d1, d2, 100.0, 3.0, 4.0, 1, days360 = false)
-        assertEquals(-97.6151555, r.prc, 1e-9)
+        assertEquals(-97.61515550118818, r.prc, 1e-9)
         assertEquals(-1.3808219178082193, r.int, 1e-12)   // 参考值（截图缺失）
         assertEquals(-98.9959774189964, r.cst, 1e-9)      // 参考值
     }
