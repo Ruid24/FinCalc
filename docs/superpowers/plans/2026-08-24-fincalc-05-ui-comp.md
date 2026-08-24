@@ -120,14 +120,15 @@ class NumberFormatterTest {
     @Test
     fun `norm large magnitude switches at 1e10`() {
         assertEquals("1234567890", NumberFormatter.format(1234567890.0, DisplayMode.Norm1))
-        assertEquals("1.234567891E10", NumberFormatter.format(12345678901.0, DisplayMode.Norm1))
+        // 12345678905 → 10 位有效数字进位（第 11 位为 5）→ 1.234567891E10
+        assertEquals("1.234567891E10", NumberFormatter.format(12345678905.0, DisplayMode.Norm1))
     }
 
     @Test
     fun `norm strips trailing zeros`() {
         assertEquals("0.4", NumberFormatter.format(0.4, DisplayMode.Norm1))
         assertEquals("-3.75", NumberFormatter.format(-3.75, DisplayMode.Norm1))
-        assertEquals("1E2", NumberFormatter.format(100.0, DisplayMode.Norm2))
+        assertEquals("100", NumberFormatter.format(100.0, DisplayMode.Norm2))
     }
 
     @Test
