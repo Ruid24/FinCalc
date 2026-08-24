@@ -2,4 +2,13 @@
 <resources>
     <string name="app_name">FinCalc</string>
     <string name="placeholder_title">FinCalc —— 对标 FC-200V 的金融计算器（建设中）</string>
+    <string name="settings">设置</string>
+    <string name="mode_select">模式选择</string>
+    <string name="mode_coming_soon">该模式将在下个版本实现</string>
+    <string name="angle_unit">角度单位</string>
+    <string name="display_mode">数值显示</string>
+    <string name="language">界面语言</string>
+    <string name="date_mode">一年中的天数（Date Mode）</string>
+    <string name="date_input">日期输入格式</string>
+    <string name="history_empty">暂无历史</string>
 </resources>

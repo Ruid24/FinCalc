@@ -2,4 +2,13 @@
 <resources>
     <string name="app_name">FinCalc</string>
     <string name="placeholder_title">FinCalc — FC-200V style financial calculator (under construction)</string>
+    <string name="settings">Settings</string>
+    <string name="mode_select">Mode</string>
+    <string name="mode_coming_soon">This mode is coming in the next update</string>
+    <string name="angle_unit">Angle unit</string>
+    <string name="display_mode">Number format</string>
+    <string name="language">Language</string>
+    <string name="date_mode">Date Mode (days in year)</string>
+    <string name="date_input">Date Input format</string>
+    <string name="history_empty">No history</string>
 </resources>
