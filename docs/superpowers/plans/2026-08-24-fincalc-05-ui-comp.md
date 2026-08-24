@@ -36,6 +36,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（Task 4 双审查）：①质量审查发现 themes.xml 缺 `windowLightStatusBar=false`（Material.Light 默认深色状态栏图标，黑底下不可见）——已在计划与磁盘同步补一行。②其余备注（非阻塞未改码）：历史 load 未按 HISTORY_CAP 截断；历史序列化的 tab 注入理论边缘（当前键盘无法产生 \t，loader 有丢弃兜底）；periodsPerYear 无范围校验；Prefs 尚无调用点（计划 5 Task 5+ 接线时需注意 load/save 串行化）。规格审查 PASS（5 文件逐字一致）。
 - 2026-08-24（Task 3 双审查发现，已修复）：①规格审查——实现把隐式乘的窄空格（U+2009）误写为普通空格（U+0020），已改回（单字符差异，逐字比对捕获）。②质量审查——`SupBox` 原契约 `baseline=base.baseline` 与 `height=base.height+max(0,−supTop)` 自相矛盾（sup 恒向上溢出盒界 0.21em，`2^3` 都触发；绘制者无法同时满足基线对齐与墨迹在界内）；已改为 lift 模型（`baseline=base.baseline+lift`、`height=base.height+lift`、新增 `baseTop`/`supTop` 非负偏移），MathView 的 SupBox 绘制分支同步更新，测试锁定新契约并补嵌套幂单级脚本用例（12 测）。其余备注（非阻塞）：嵌套上标不二次缩小为有意决策（真机单级脚本）；TextMeasure 的 0.8h 基线启发式由 UI 层包装时对齐真实基线；SubBox 仅向下扩展（仅 log 底数用，实际不触发）。
 - 2026-08-24（Task 3 实现子代理回报+控制器排查）：①计划代码误用 `intersperse`——该函数**不在 Kotlin 标准库**（子代理已对缓存的 stdlib jar 实证 grep 为零）；已在 MathBuilder.kt 末尾补私有扩展实现。②MathBuilderTest 的 `build()` 助手误把单语句也走 Program 包装（返回 RowBox 而非表达式自身的盒子），导致 7 个结构断言失败；已改为单语句取 `statements[0]`。③`flatten` 曾不产出容器节点自身，致 `log with base has sub box` 的 SubBox 断言永假；已改为先含自身再递归。
 - 2026-08-24（Task 2 质量审查发现）：`Settings` 缺 **Payment（期初/期末）** 与 **dn（CI/SI 奇数期利息）** 两项——它们是 CMPD 求解器的必填形参且属说明书 CN-19 设置屏，非计划留白。已补入 Settings（CalcState.kt）、Prefs 序列化（计划 5 Task 4 块）、CalcStateTest 回归（6 测）。其余备注（非阻塞）：`history` 公有 MutableList 的越界隐患（建议后续改只读视图）；Ans 双写无害重复。
@@ -910,6 +911,8 @@ object Prefs {
     <style name="Theme.FinCalc" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:statusBarColor">@android:color/black</item>
+        <!-- 审查发现：Material.Light 默认浅色状态栏图标，黑底下不可见，改深色底配浅色图标 -->
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
 ```
