@@ -5,6 +5,9 @@ import com.fincalc.app.core.expr.DisplayMode
 import com.fincalc.app.core.expr.EvalContext
 import com.fincalc.app.core.finance.Cmpd
 import com.fincalc.app.core.finance.Days
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 /** 12 个计算模式（设计文档 §5）。 */
 enum class Mode { COMP, SMPL, CMPD, CASH, AMRT, CNVR, COST, DAYS, DEPR, BOND, BEVN, STAT }
@@ -33,12 +36,15 @@ data class HistoryEntry(val input: String, val result: Double)
  * 变量：A~D、X、Y、M、Ans + 金融 VARS（n、I%、PV、PMT、FV、P/Y、C/Y、PM1、PM2、Dys……计划 6 接线）。
  */
 class CalcState(
-    var settings: Settings = Settings()
+    settings: Settings = Settings()
 ) {
-    var mode: Mode = Mode.COMP
+    /** Compose 可观察（mutableStateOf）：UI 直接订阅，改动即触发重组（Task 5 审查修复）。 */
+    var settings by mutableStateOf(settings)
+
+    var mode: Mode by mutableStateOf(Mode.COMP)
         private set
 
-    var shift: Boolean = false
+    var shift: Boolean by mutableStateOf(false)
         private set
 
     private val vars = mutableMapOf<String, Double>()
@@ -46,13 +52,18 @@ class CalcState(
     var historyCursor = -1
         private set
 
-    fun setMode(m: Mode) {
+    fun switchMode(m: Mode) {
         mode = m
         shift = false
     }
 
     fun toggleShift() {
         shift = !shift
+    }
+
+    /** 真机行为：SHIFT 只作用于下一次按键，插入后自动解除。 */
+    fun clearShift() {
+        shift = false
     }
 
     fun getVar(name: String): Double = vars[name] ?: 0.0

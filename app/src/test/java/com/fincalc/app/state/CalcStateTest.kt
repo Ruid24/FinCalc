@@ -57,7 +57,7 @@ class CalcStateTest {
     fun `mode switch resets shift`() {
         val s = CalcState()
         s.toggleShift()
-        s.setMode(Mode.CMPD)
+        s.switchMode(Mode.CMPD)
         assertEquals(false, s.shift)
         assertEquals(Mode.CMPD, s.mode)
     }

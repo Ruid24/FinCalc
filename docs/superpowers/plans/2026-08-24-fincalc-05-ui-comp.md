@@ -36,6 +36,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（Task 5 质量审查发现，FAIL 级已修复）：**CalcState 的 mode/shift/settings 是普通 Kotlin var，Compose 不观察**——SHIFT 指示符/键面不刷新、按键动作按旧组合态插入（错位一档）、SHIFT 粘滞不复位。已修复：①三者改 `mutableStateOf` 委托（compose runtime 为纯 JVM，不违反 state 的"无 android import"约束）；②`clearShift()` 加入 CalcState 并在 `CompController.insert` 末尾消费（真机：SHIFT 只作用于下一次按键）；③`isOperatorStart` 修正：去掉会产生非法 "Ans)" 的 `)`，补上 `² ³ ˣ√( nPr nCr`（EXE 后按 x² 应得 Ans²）。新增 CompControllerTest 锁定（6 测）。连带：可变属性委托生成 JVM setter 与原 `setMode` 方法签名冲突——`setMode` 改名 `switchMode`。非阻塞备注：SqrtBox 根号线宽为固定物理像素未随 em 缩放、底部顶点裁边约 1px（纯视觉）；输入中间态降级线性文本的闪烁（后续可"保留最后成功排版"优化）；横向滚动不自动跟光标（UX 注）。
 - 2026-08-24（Task 4 双审查）：①质量审查发现 themes.xml 缺 `windowLightStatusBar=false`（Material.Light 默认深色状态栏图标，黑底下不可见）——已在计划与磁盘同步补一行。②其余备注（非阻塞未改码）：历史 load 未按 HISTORY_CAP 截断；历史序列化的 tab 注入理论边缘（当前键盘无法产生 \t，loader 有丢弃兜底）；periodsPerYear 无范围校验；Prefs 尚无调用点（计划 5 Task 5+ 接线时需注意 load/save 串行化）。规格审查 PASS（5 文件逐字一致）。
 - 2026-08-24（Task 3 双审查发现，已修复）：①规格审查——实现把隐式乘的窄空格（U+2009）误写为普通空格（U+0020），已改回（单字符差异，逐字比对捕获）。②质量审查——`SupBox` 原契约 `baseline=base.baseline` 与 `height=base.height+max(0,−supTop)` 自相矛盾（sup 恒向上溢出盒界 0.21em，`2^3` 都触发；绘制者无法同时满足基线对齐与墨迹在界内）；已改为 lift 模型（`baseline=base.baseline+lift`、`height=base.height+lift`、新增 `baseTop`/`supTop` 非负偏移），MathView 的 SupBox 绘制分支同步更新，测试锁定新契约并补嵌套幂单级脚本用例（12 测）。其余备注（非阻塞）：嵌套上标不二次缩小为有意决策（真机单级脚本）；TextMeasure 的 0.8h 基线启发式由 UI 层包装时对齐真实基线；SubBox 仅向下扩展（仅 log 底数用，实际不触发）。
 - 2026-08-24（Task 3 实现子代理回报+控制器排查）：①计划代码误用 `intersperse`——该函数**不在 Kotlin 标准库**（子代理已对缓存的 stdlib jar 实证 grep 为零）；已在 MathBuilder.kt 末尾补私有扩展实现。②MathBuilderTest 的 `build()` 助手误把单语句也走 Program 包装（返回 RowBox 而非表达式自身的盒子），导致 7 个结构断言失败；已改为单语句取 `statements[0]`。③`flatten` 曾不产出容器节点自身，致 `log with base has sub box` 的 SubBox 断言永假；已改为先含自身再递归。
@@ -209,6 +210,9 @@ import com.fincalc.app.core.expr.DisplayMode
 import com.fincalc.app.core.expr.EvalContext
 import com.fincalc.app.core.finance.Cmpd
 import com.fincalc.app.core.finance.Days
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 /** 12 个计算模式（设计文档 §5）。 */
 enum class Mode { COMP, SMPL, CMPD, CASH, AMRT, CNVR, COST, DAYS, DEPR, BOND, BEVN, STAT }
@@ -237,12 +241,15 @@ data class HistoryEntry(val input: String, val result: Double)
  * 变量：A~D、X、Y、M、Ans + 金融 VARS（n、I%、PV、PMT、FV、P/Y、C/Y、PM1、PM2、Dys……计划 6 接线）。
  */
 class CalcState(
-    var settings: Settings = Settings()
+    settings: Settings = Settings()
 ) {
-    var mode: Mode = Mode.COMP
+    /** Compose 可观察（mutableStateOf）：UI 直接订阅，改动即触发重组（Task 5 审查修复）。 */
+    var settings by mutableStateOf(settings)
+
+    var mode: Mode by mutableStateOf(Mode.COMP)
         private set
 
-    var shift: Boolean = false
+    var shift: Boolean by mutableStateOf(false)
         private set
 
     private val vars = mutableMapOf<String, Double>()
@@ -250,13 +257,18 @@ class CalcState(
     var historyCursor = -1
         private set
 
-    fun setMode(m: Mode) {
+    fun switchMode(m: Mode) {
         mode = m
         shift = false
     }
 
     fun toggleShift() {
         shift = !shift
+    }
+
+    /** 真机行为：SHIFT 只作用于下一次按键，插入后自动解除。 */
+    fun clearShift() {
+        shift = false
     }
 
     fun getVar(name: String): Double = vars[name] ?: 0.0
@@ -977,6 +989,7 @@ git commit -m "feat(data): DataStore 持久化（设置+历史）与深色液晶
 - Create: `app/src/main/java/com/fincalc/app/ui/comp/CompController.kt`
 - Create: `app/src/main/java/com/fincalc/app/ui/comp/CompScreen.kt`
 - Create: `app/src/main/java/com/fincalc/app/ui/keyboard/Keyboard.kt`
+- Create: `app/src/test/java/com/fincalc/app/ui/comp/CompControllerTest.kt`（审查修复后新增）
 - Modify: `app/src/main/java/com/fincalc/app/MainActivity.kt`（整体替换为应用入口）
 
 **说明（实现子代理）**：本任务为参考实现（计划设计决策 8）。结构、类名、行为必须与计划一致；Compose API 细节若编译报错，允许修正用法（如签名/参数名），不许改变结构与行为。完成标准：`assembleDebug` 通过 + 行为走查清单逐项可验。
@@ -1158,6 +1171,7 @@ class CompController(val state: CalcState) {
         errorText = null
         input = input.substring(0, cursor) + text + input.substring(cursor)
         cursor += text.length
+        state.clearShift()   // SHIFT 只作用于下一次按键（真机行为）
     }
 
     fun delete() {
@@ -1223,7 +1237,76 @@ class CompController(val state: CalcState) {
     }
 
     private fun String.isOperatorStart(): Boolean =
-        first() in "+-×÷^!" || this == ")" || first() == '%'
+        first() in "+-×÷^!%²³" || this == "ˣ√(" || this == " nPr " || this == " nCr "
+}
+```
+
+- [ ] **Step 2b: CompControllerTest.kt（审查修复后新增，锁定 Ans 续算与 SHIFT 消费行为）**
+
+```kotlin
+package com.fincalc.app.ui.comp
+
+import com.fincalc.app.state.CalcState
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Test
+
+/** COMP 控制器行为测试（Task 5 质量审查发现的缺陷回归锁定）。 */
+class CompControllerTest {
+
+    @Test
+    fun `operator after exe continues with Ans`() {
+        val c = CompController(CalcState())
+        c.insert("2"); c.insert("+"); c.insert("3"); c.execute()   // 5
+        c.insert("×"); c.insert("2")                               // Ans×2
+        c.execute()
+        assertEquals("10", c.resultText)
+    }
+
+    @Test
+    fun `digit after exe starts fresh`() {
+        val c = CompController(CalcState())
+        c.insert("2"); c.execute()
+        c.insert("5")
+        assertEquals("5", c.input)
+    }
+
+    @Test
+    fun `postfix after exe continues with Ans`() {
+        // 审查发现：EXE 后按 x² 应得 Ans² 而非孤立 ²
+        val c = CompController(CalcState())
+        c.insert("3"); c.execute()   // 3
+        c.insert("²")                // Ans²
+        c.execute()
+        assertEquals("9", c.resultText)
+    }
+
+    @Test
+    fun `infix function after exe continues with Ans`() {
+        val c = CompController(CalcState())
+        c.insert("10"); c.execute()      // 10
+        c.insert(" nCr "); c.insert("2") // Ans nCr 2
+        c.execute()
+        assertEquals("45", c.resultText)
+    }
+
+    @Test
+    fun `shift is consumed after insert`() {
+        val s = CalcState()
+        val c = CompController(s)
+        s.toggleShift()
+        c.insert("³")
+        assertFalse(s.shift)
+    }
+
+    @Test
+    fun `error keeps input editable`() {
+        val c = CompController(CalcState())
+        c.insert("1"); c.insert("÷"); c.insert("0"); c.execute()
+        assertEquals("Math ERROR", c.errorText)
+        c.delete(); c.insert("2"); c.execute()
+        assertEquals("0.5", c.resultText)
+    }
 }
 ```
 
@@ -1569,10 +1652,10 @@ fun ModeDialog(state: CalcState, onDismiss: () -> Unit) {
                             Button(
                                 onClick = {
                                     if (m == Mode.COMP) {
-                                        state.setMode(m)
+                                        state.switchMode(m)
                                     } else {
                                         // 计划 6 实现：先切模式显示占位界面
-                                        state.setMode(m)
+                                        state.switchMode(m)
                                     }
                                     onDismiss()
                                 },
