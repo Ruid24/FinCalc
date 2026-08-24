@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.ui.keyboard.Key
 import com.fincalc.app.ui.keyboard.Keypad
+import com.fincalc.app.ui.keyboard.modeKeyRows
 import com.fincalc.app.ui.math.MathView
 
 /** COMP 模式界面。上屏（输入实时排版 + 结果）下键（仿真键盘）。 */
@@ -80,7 +81,7 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
             }
         }
         // 键盘区
-        Keypad(rows = compKeys(controller, onOpenModes, onOpenSettings), shift = state.shift)
+        Keypad(rows = compKeys(controller, onOpenModes, onOpenSettings), shift = state.shift, modifier = Modifier.weight(3f))
     }
 }
 
@@ -91,10 +92,10 @@ private fun compKeys(c: CompController, onOpenModes: () -> Unit, onOpenSettings:
     fun insShift(label: String, shiftLabel: String, text: String, shiftText: String): Key =
         Key(label, shiftLabel, onPress = { c.insert(text) }, onShiftPress = { c.insert(shiftText) })
 
-    return listOf(
+    return modeKeyRows(s) + listOf(
         listOf(
             Key("SHIFT", onPress = { s.toggleShift() }),
-            Key("MODE", onPress = onOpenModes),
+            Key("MODE", "SET", onPress = onOpenModes, onShiftPress = onOpenSettings),
             Key("◀", onPress = { c.moveLeft() }),
             Key("▶", onPress = { c.moveRight() }),
             Key("DEL", onPress = { c.delete() }),
@@ -132,8 +133,7 @@ private fun compKeys(c: CompController, onOpenModes: () -> Unit, onOpenSettings:
             Key("▼", onPress = { c.historyForward() })
         ),
         listOf(
-            Key("SET", onPress = onOpenSettings),
-            ins("A"), ins("B"), ins("C"), ins("X"), ins("Y")
+            ins("A"), ins("B"), ins("C"), ins("D"), ins("X"), ins("Y")
         )
     )
 }
