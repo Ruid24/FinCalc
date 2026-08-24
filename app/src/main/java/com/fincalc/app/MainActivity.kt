@@ -17,6 +17,8 @@ import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.Mode
 import com.fincalc.app.ui.comp.CompController
 import com.fincalc.app.ui.comp.CompScreen
+import com.fincalc.app.ui.dialogs.ModeDialog
+import com.fincalc.app.ui.dialogs.SettingsDialog
 
 class MainActivity : ComponentActivity() {
 
@@ -54,16 +56,4 @@ fun FinCalcApp(state: CalcState) {
 
     if (showModes) ModeDialog(state, onDismiss = { showModes = false })
     if (showSettings) SettingsDialog(state, onDismiss = { showSettings = false })
-}
-
-/** 占位实现：Task 6 提供正式版。 */
-@Composable
-fun ModeDialog(state: CalcState, onDismiss: () -> Unit) {
-    onDismiss()
-}
-
-/** 占位实现：Task 6 提供正式版。 */
-@Composable
-fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
-    onDismiss()
 }
