@@ -16,7 +16,7 @@
 | 功能范围 | 一次做全 FC-200V 的 12 个模式 |
 | 交互范式 | 仿真键盘 + 点阵屏风格（仅保留布局神韵，高分辨率矢量渲染，不做像素颗粒模拟），金融模式沿用"翻改变量 → 输入 → SOLVE"的实体机操作 |
 | 界面语言 | 中英文双语（默认中文，设置中可切换；键面缩写保持英文） |
-| 技术路线 | 方案 A：自研表达式引擎（语法树 → 数值 + LaTeX 双输出）+ AndroidMath 原生 LaTeX 渲染 |
+| 技术路线 | 方案 A：自研表达式引擎（语法树 → 数值 + LaTeX 双输出）+ 自研 Compose 排版器（Canvas 矢量绘制，无 WebView、零外部依赖）。注：原定 AndroidMath 库已不可用（GitHub 仓库下架、不在 Maven Central，2026-08-24 实测验证），经用户确认改为自研排版器 |
 | 开源协议 | MIT |
 | 发布方式 | GitHub Releases（GitHub Actions 云端自动构建 APK） |
 | 本地构建 | 项目目录下 `.dev/` 内安装免安装命令行工具链（JDK 17 + Android SDK cmdline-tools），不进系统目录 |
@@ -26,7 +26,7 @@
 - 语言：Kotlin
 - UI：Jetpack Compose + Material 3（声明式 UI）
 - 架构：MVVM；计算核心不依赖安卓框架，可纯 JUnit 测试
-- LaTeX 渲染：AndroidMath（iosMath 的 Kotlin 移植，原生 View，无 WebView）
+- LaTeX 渲染：自研 Compose 排版器（Canvas 矢量绘制；输入为 core/expr 自产的 LaTeX 子集对应的 AST）
 - 持久化：Jetpack DataStore（设置与历史；无需数据库）
 - 构建：Gradle (KTS) + GitHub Actions
 
@@ -34,7 +34,7 @@
 
 - `core/expr` — 表达式引擎：分词器 → 递归下降解析器 → 语法树（AST）；AST 两个消费者：
   - 求值器：计算数值结果（双精度浮点）
-  - 排版器：生成 LaTeX 字符串（`x^{y}`、`\frac{a}{b}`、`\sqrt{x}`、`\sum` 等），供 AndroidMath 渲染
+  - 排版器：生成 LaTeX 字符串（`x^{y}`、`\frac{a}{b}`、`\sqrt{x}`、`\sum` 等），供自研排版器渲染
 - `core/solver` — 数值求根：牛顿法为主、二分法兜底；用于 IRR、I%、债券收益率等无解析解场景
 - `core/finance` — 12 个模式的公式引擎（纯函数，公式取自说明书"计算公式"章节）
 - `state` — 计算器状态机：当前模式、Ans/M 存储器、变量 A~D/X/Y、金融变量 VARS、设置（Fix/Sci/Norm、角度单位、日期格式、日年基准等）、计算历史
@@ -62,7 +62,7 @@
   - 屏幕区：COMP 模式第一行实时 LaTeX 排版输入表达式、第二行结果；金融模式为多行可滚动变量列表（当前行高亮），方向键移动、EXE 存入、SOLVE 求解，操作逻辑与实体机一致
   - 键盘区：仿 FC-200V 键面网格；SHIFT 切换第二功能（键面标签动态变化）；MODE 弹出模式选择；按键振动与高亮反馈
 - **显示风格**：屏幕区可保留卡西欧计算器的点阵屏神韵（深色液晶屏底色、布局与指示符位置），但**必须高分辨率渲染**——所有文字与公式用矢量字体/AndroidMath（LaTeX 排版本身即矢量），禁止模拟低分辨率像素颗粒。这是手机 App 相对实体机的显示优势，显示效果对标 calc business 的清晰排版而非实体机的粗糙点阵。
-- LaTeX 渲染：输入过程实时排版；渲染库不支持的片段自动降级为线性文本
+- LaTeX 渲染：输入过程实时排版；自研排版器不支持的画面降级为线性文本
 - 学习辅助：金融模式长按变量可查看该变量的计算公式（LaTeX 排版）
 - 精度：内部双精度，显示模拟卡西欧 10 位有效数字与 Fix/Sci/Norm 规则
 
@@ -83,7 +83,7 @@
 
 | 风险 | 缓解 |
 |---|---|
-| AndroidMath 对某些 LaTeX 语法支持不全 | 排版器只使用该库支持的子集；不支持的片段降级为文本 |
+| 自研排版器渲染能力有限 | 排版子集自控（\frac/\sqrt/上下标/\pi/\mathrm 等，即 core/expr 排版器的全部输出）；不支持的片段降级为线性文本 |
 | IRR/收益率求解不收敛 | 牛顿法 + 二分法兜底；边界返回说明书一致的错误提示（如 Math ERROR） |
 | 12 模式工作量大 | 核心引擎优先（expr + CMPD/CASH/AMRT），每完成一个模式即过一遍说明书例题 |
 | 本机无 Java/Android 环境 | `.dev/` 内免安装工具链 + GitHub Actions 云端构建双保险 |
