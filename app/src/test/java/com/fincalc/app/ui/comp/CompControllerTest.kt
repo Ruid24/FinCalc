@@ -14,7 +14,7 @@ class CompControllerTest {
         c.insert("2"); c.insert("+"); c.insert("3"); c.execute()   // 5
         c.insert("×"); c.insert("2")                               // Ans×2
         c.execute()
-        assertEquals("10", c.resultText)
+        assertEquals(10.0, c.result!!, 1e-12)
     }
 
     @Test
@@ -32,7 +32,7 @@ class CompControllerTest {
         c.insert("3"); c.execute()   // 3
         c.insert("²")                // Ans²
         c.execute()
-        assertEquals("9", c.resultText)
+        assertEquals(9.0, c.result!!, 1e-12)
     }
 
     @Test
@@ -41,7 +41,7 @@ class CompControllerTest {
         c.insert("10"); c.execute()      // 10
         c.insert(" nCr "); c.insert("2") // Ans nCr 2
         c.execute()
-        assertEquals("45", c.resultText)
+        assertEquals(45.0, c.result!!, 1e-12)
     }
 
     @Test
@@ -59,6 +59,6 @@ class CompControllerTest {
         c.insert("1"); c.insert("÷"); c.insert("0"); c.execute()
         assertEquals("Math ERROR", c.errorText)
         c.delete(); c.insert("2"); c.execute()
-        assertEquals("0.5", c.resultText)
+        assertEquals(0.5, c.result!!, 1e-12)
     }
 }

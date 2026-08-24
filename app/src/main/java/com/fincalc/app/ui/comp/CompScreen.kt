@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.ui.keyboard.Key
 import com.fincalc.app.ui.keyboard.Keypad
 import com.fincalc.app.ui.math.MathView
@@ -60,14 +61,14 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
                     MathView(controller.input, baseTextSize = 22.sp)
                 }
             }
-            // 结果/错误行（右对齐）
+            // 结果/错误行（右对齐；显示时按当前 Fix/Sci/Norm 格式化——设置变更即时重显，真机行为）
             Row(modifier = Modifier.fillMaxWidth()) {
                 val error = controller.errorText
-                val result = controller.resultText
+                val result = controller.result
                 when {
                     error != null -> Text(error, color = Color(0xFFFFB4A2), fontSize = 20.sp)
                     result != null -> Text(
-                        result,
+                        NumberFormatter.format(result, state.settings.display),
                         color = Color(0xFFE8F5E9),
                         fontSize = 26.sp,
                         fontFamily = FontFamily.Serif,

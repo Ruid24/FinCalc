@@ -36,6 +36,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（真机走查反馈）：**改 Fix/Sci/Norm 后已有结果不即时重显**（原为求值时格式化字符串快照），真机即时重显——用户走查时因此误以为设置未生效。已修复：`CompController.result` 改存原始 Double，结果行显示时按当前 `settings.display` 格式化（Compose 可观察，设置一变即重组）。CompControllerTest 断言同步改为数值。同步完成，213 测全绿。
 - 2026-08-24（整体终审）：PASS WITH NOTES（213 测 0 败 / 22 类、APK 产出、跨层链路完整、Prefs↔Settings 12 字段双向完备、语言注入时序正确、走查清单 10 项均有实现支撑）。终审新发现两处顺手修复：①Latex.kt KDoc 仍写"供 AndroidMath 渲染"（路线已弃）——已改为指向自研排版器（计划 2 文本同步）；②CompScreen.kt 3 个未用 import（verticalScroll/TextStyle/Mode）——已清理（计划 Task 5 块同步）。待计划 6 注意点：CalcState.vars 非 Compose 可观察（变量列表 UI 须自带可观察态）；Key/Keypad 无长按钩子（学习辅助"长按公式"的前置扩展点）。
 - 2026-08-24（Task 6 质量审查发现，已修复）：①**语言切换机制不可靠**——`Locale.setDefault+recreate` 在 API 24+ 不改变重建后 Activity 的资源配置（Configuration 来自系统 locale，非 JVM 默认），双语切换这一验收点将失效；已改为 `attachBaseContext` + `createConfigurationContext` 注入持久化 locale（对所有 API 级别确定生效），同时顺势接线 Prefs（onCreate 同步 load、onPause 异步 save、SettingsDialog 语言切换先持久化再 recreate）。②非 COMP 占位界面无返回通道（单向门）——已加"返回"按钮。③规格审查：ModeDialog KDoc 与计划措辞差（磁盘版与实际行为更吻合），计划已同步。非阻塞备注：已显示结果不随 Fix/Sci/Norm 切换即时重排版（下次 EXE 生效，真机会即时重显——列入计划 6）；RadioButton 旁文字不可点；语言切换无"已是当前语言"守卫。
 - 2026-08-24（Task 5 质量审查发现，FAIL 级已修复）：**CalcState 的 mode/shift/settings 是普通 Kotlin var，Compose 不观察**——SHIFT 指示符/键面不刷新、按键动作按旧组合态插入（错位一档）、SHIFT 粘滞不复位。已修复：①三者改 `mutableStateOf` 委托（compose runtime 为纯 JVM，不违反 state 的"无 android import"约束）；②`clearShift()` 加入 CalcState 并在 `CompController.insert` 末尾消费（真机：SHIFT 只作用于下一次按键）；③`isOperatorStart` 修正：去掉会产生非法 "Ans)" 的 `)`，补上 `² ³ ˣ√( nPr nCr`（EXE 后按 x² 应得 Ans²）。新增 CompControllerTest 锁定（6 测）。连带：可变属性委托生成 JVM setter 与原 `setMode` 方法签名冲突——`setMode` 改名 `switchMode`。非阻塞备注：SqrtBox 根号线宽为固定物理像素未随 em 缩放、底部顶点裁边约 1px（纯视觉）；输入中间态降级线性文本的闪烁（后续可"保留最后成功排版"优化）；横向滚动不自动跟光标（UX 注）。
@@ -1147,7 +1148,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.fincalc.app.core.expr.CalcException
 import com.fincalc.app.core.expr.ExprEngine
-import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.state.CalcState
 
 /** COMP 模式控制器：输入行（String + 光标）、求值、错误、历史回溯、Ans 续算。 */
@@ -1157,7 +1157,8 @@ class CompController(val state: CalcState) {
         private set
     var cursor by mutableStateOf(0)
         private set
-    var resultText by mutableStateOf<String?>(null)
+    /** 最近一次求值结果（原始值；显示时按当前 Fix/Sci/Norm 格式化——设置变更即时重显，真机行为）。 */
+    var result by mutableStateOf<Double?>(null)
         private set
     var errorText by mutableStateOf<String?>(null)
         private set
@@ -1174,7 +1175,7 @@ class CompController(val state: CalcState) {
                 cursor = 0
             }
             justEvaluated = false
-            resultText = null
+            result = null
         }
         errorText = null
         input = input.substring(0, cursor) + text + input.substring(cursor)
@@ -1192,7 +1193,7 @@ class CompController(val state: CalcState) {
     fun clear() {
         input = ""
         cursor = 0
-        resultText = null
+        result = null
         errorText = null
         justEvaluated = false
     }
@@ -1210,7 +1211,7 @@ class CompController(val state: CalcState) {
         try {
             val r = ExprEngine.eval(input, state.exprContext())
             state.onEvaluated(input, r)
-            resultText = NumberFormatter.format(r, state.settings.display)
+            result = r
             errorText = null
             justEvaluated = true
         } catch (e: CalcException) {
@@ -1225,7 +1226,7 @@ class CompController(val state: CalcState) {
         state.historyBack()?.let {
             input = it.input
             cursor = it.input.length
-            resultText = NumberFormatter.format(it.result, state.settings.display)
+            result = it.result
             errorText = null
             justEvaluated = false
         }
@@ -1236,7 +1237,7 @@ class CompController(val state: CalcState) {
         if (entry != null) {
             input = entry.input
             cursor = entry.input.length
-            resultText = NumberFormatter.format(entry.result, state.settings.display)
+            result = entry.result
         } else {
             clear()
         }
@@ -1268,7 +1269,7 @@ class CompControllerTest {
         c.insert("2"); c.insert("+"); c.insert("3"); c.execute()   // 5
         c.insert("×"); c.insert("2")                               // Ans×2
         c.execute()
-        assertEquals("10", c.resultText)
+        assertEquals(10.0, c.result!!, 1e-12)
     }
 
     @Test
@@ -1286,7 +1287,7 @@ class CompControllerTest {
         c.insert("3"); c.execute()   // 3
         c.insert("²")                // Ans²
         c.execute()
-        assertEquals("9", c.resultText)
+        assertEquals(9.0, c.result!!, 1e-12)
     }
 
     @Test
@@ -1295,7 +1296,7 @@ class CompControllerTest {
         c.insert("10"); c.execute()      // 10
         c.insert(" nCr "); c.insert("2") // Ans nCr 2
         c.execute()
-        assertEquals("45", c.resultText)
+        assertEquals(45.0, c.result!!, 1e-12)
     }
 
     @Test
@@ -1313,7 +1314,7 @@ class CompControllerTest {
         c.insert("1"); c.insert("÷"); c.insert("0"); c.execute()
         assertEquals("Math ERROR", c.errorText)
         c.delete(); c.insert("2"); c.execute()
-        assertEquals("0.5", c.resultText)
+        assertEquals(0.5, c.result!!, 1e-12)
     }
 }
 ```
@@ -1402,6 +1403,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.ui.keyboard.Key
 import com.fincalc.app.ui.keyboard.Keypad
 import com.fincalc.app.ui.math.MathView
@@ -1446,14 +1448,14 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
                     MathView(controller.input, baseTextSize = 22.sp)
                 }
             }
-            // 结果/错误行（右对齐）
+            // 结果/错误行（右对齐；显示时按当前 Fix/Sci/Norm 格式化——设置变更即时重显，真机行为）
             Row(modifier = Modifier.fillMaxWidth()) {
                 val error = controller.errorText
-                val result = controller.resultText
+                val result = controller.result
                 when {
                     error != null -> Text(error, color = Color(0xFFFFB4A2), fontSize = 20.sp)
                     result != null -> Text(
-                        result,
+                        NumberFormatter.format(result, state.settings.display),
                         color = Color(0xFFE8F5E9),
                         fontSize = 26.sp,
                         fontFamily = FontFamily.Serif,

@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.fincalc.app.core.expr.CalcException
 import com.fincalc.app.core.expr.ExprEngine
-import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.state.CalcState
 
 /** COMP 模式控制器：输入行（String + 光标）、求值、错误、历史回溯、Ans 续算。 */
@@ -15,7 +14,8 @@ class CompController(val state: CalcState) {
         private set
     var cursor by mutableStateOf(0)
         private set
-    var resultText by mutableStateOf<String?>(null)
+    /** 最近一次求值结果（原始值；显示时按当前 Fix/Sci/Norm 格式化——设置变更即时重显，真机行为）。 */
+    var result by mutableStateOf<Double?>(null)
         private set
     var errorText by mutableStateOf<String?>(null)
         private set
@@ -32,7 +32,7 @@ class CompController(val state: CalcState) {
                 cursor = 0
             }
             justEvaluated = false
-            resultText = null
+            result = null
         }
         errorText = null
         input = input.substring(0, cursor) + text + input.substring(cursor)
@@ -50,7 +50,7 @@ class CompController(val state: CalcState) {
     fun clear() {
         input = ""
         cursor = 0
-        resultText = null
+        result = null
         errorText = null
         justEvaluated = false
     }
@@ -68,12 +68,12 @@ class CompController(val state: CalcState) {
         try {
             val r = ExprEngine.eval(input, state.exprContext())
             state.onEvaluated(input, r)
-            resultText = NumberFormatter.format(r, state.settings.display)
+            result = r
             errorText = null
             justEvaluated = true
         } catch (e: CalcException) {
             errorText = e.kind.display
-            resultText = null
+            result = null
             justEvaluated = false
         }
     }
@@ -83,7 +83,7 @@ class CompController(val state: CalcState) {
         state.historyBack()?.let {
             input = it.input
             cursor = it.input.length
-            resultText = NumberFormatter.format(it.result, state.settings.display)
+            result = it.result
             errorText = null
             justEvaluated = false
         }
@@ -94,7 +94,7 @@ class CompController(val state: CalcState) {
         if (entry != null) {
             input = entry.input
             cursor = entry.input.length
-            resultText = NumberFormatter.format(entry.result, state.settings.display)
+            result = entry.result
         } else {
             clear()
         }
