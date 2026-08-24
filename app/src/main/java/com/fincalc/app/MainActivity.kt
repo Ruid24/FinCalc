@@ -5,8 +5,11 @@ import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -17,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import com.fincalc.app.data.Prefs
 import com.fincalc.app.state.CalcState
@@ -25,6 +29,17 @@ import com.fincalc.app.ui.comp.CompController
 import com.fincalc.app.ui.comp.CompScreen
 import com.fincalc.app.ui.dialogs.ModeDialog
 import com.fincalc.app.ui.dialogs.SettingsDialog
+import com.fincalc.app.ui.finance.FinanceController
+import com.fincalc.app.ui.finance.FinanceScreen
+import com.fincalc.app.ui.finance.FinanceVar
+import com.fincalc.app.ui.finance.ModeScreenSpec
+import com.fincalc.app.ui.finance.modes.cnvrSpec
+import com.fincalc.app.ui.finance.modes.costSpec
+import com.fincalc.app.ui.finance.modes.daysSpec
+import com.fincalc.app.ui.finance.modes.smplSpec
+import com.fincalc.app.ui.keyboard.Key
+import com.fincalc.app.ui.keyboard.Keypad
+import com.fincalc.app.ui.keyboard.modeKeyRows
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -78,16 +93,62 @@ fun FinCalcApp(state: CalcState) {
             onOpenSettings = { showSettings = true }
         )
         else -> {
-            // 计划 6 实现其余模式；占位界面（带返回通道，避免单向门）
-            Column {
-                Text(stringResource(R.string.mode_coming_soon))
-                Button(onClick = { state.switchMode(Mode.COMP) }) {
-                    Text(stringResource(R.string.back))
+            val specPair = when (state.mode) {
+                Mode.SMPL -> smplSpec(state)
+                Mode.CNVR -> cnvrSpec(state)
+                Mode.COST -> costSpec(state)
+                Mode.DAYS -> daysSpec(state)
+                else -> null
+            }
+            if (specPair == null) {
+                // 计划 6 后续任务实现；占位界面（带返回通道）
+                Column {
+                    Text(stringResource(R.string.mode_coming_soon))
+                    Button(onClick = { state.switchMode(Mode.COMP) }) {
+                        Text(stringResource(R.string.back))
+                    }
                 }
+            } else {
+                FinanceModeBody(state, specPair.first, specPair.second)
             }
         }
     }
 
     if (showModes) ModeDialog(state, onDismiss = { showModes = false })
     if (showSettings) SettingsDialog(state, onDismiss = { showSettings = false })
+}
+
+/** 金融模式主体：变量列表屏 + 金融键盘。 */
+@Composable
+private fun FinanceModeBody(
+    state: CalcState,
+    spec: ModeScreenSpec,
+    solver: (FinanceVar) -> Double
+) {
+    val controller = remember(state.mode) { FinanceController(state, spec, solver) }
+    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            FinanceScreen(controller)
+        }
+        Keypad(rows = financeKeys(controller, state), shift = state.shift, modifier = Modifier.weight(3f))
+    }
+}
+
+/** 金融模式键盘：模式键两行 + 精简编辑键 + 数字区 + EXE/SOLVE。 */
+private fun financeKeys(c: FinanceController, state: CalcState): List<List<Key>> {
+    fun ins(text: String): Key = Key(text, onPress = { c.insert(text) })
+    return modeKeyRows(state) + listOf(
+        listOf(
+            Key("SHIFT", onPress = { state.toggleShift() }),
+            Key("◀", onPress = { /* 表达式光标留计划内简化：金融编辑先退格 */ }),
+            Key("▶", onPress = { }),
+            Key("DEL", onPress = { c.delete() }),
+            Key("AC", onPress = { c.clear() }),
+            Key("SOLVE", onPress = { c.solve() })
+        ),
+        listOf(ins("7"), ins("8"), ins("9"), ins("("), ins(")"), ins("÷")),
+        listOf(ins("4"), ins("5"), ins("6"), ins("-"), ins("×"), ins("+")),
+        listOf(ins("1"), ins("2"), ins("3"), ins("."), ins("-"), ins("%")),
+        listOf(ins("0"), ins("E"), ins("Ans"), Key("EXE", onPress = { c.exe() }), ins("π"), ins(","))
+    )
 }
