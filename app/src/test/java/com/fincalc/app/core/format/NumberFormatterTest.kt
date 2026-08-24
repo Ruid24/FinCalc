@@ -50,5 +50,20 @@ class NumberFormatterTest {
         assertEquals("0", NumberFormatter.format(0.0, DisplayMode.Norm1))
         assertEquals("Math ERROR", NumberFormatter.format(Double.NaN, DisplayMode.Norm1))
         assertEquals("Math ERROR", NumberFormatter.format(Double.POSITIVE_INFINITY, DisplayMode.Norm1))
+        assertEquals("Math ERROR", NumberFormatter.format(Double.NEGATIVE_INFINITY, DisplayMode.Norm1))
+    }
+
+    @Test
+    fun `norm exact lower boundary`() {
+        // 审查补测："严格小于"才转指数——0.01（Norm1）与 1e-9（Norm2）不转
+        assertEquals("0.01", NumberFormatter.format(0.01, DisplayMode.Norm1))
+        assertEquals("0.000000001", NumberFormatter.format(1e-9, DisplayMode.Norm2))
+        assertEquals("9.9E-3", NumberFormatter.format(0.0099, DisplayMode.Norm1))
+    }
+
+    @Test
+    fun `norm carry crosses upper boundary`() {
+        // 审查补测：先 10 位舍入后判界——9999999999.9 进位跨界
+        assertEquals("1E10", NumberFormatter.format(9999999999.9, DisplayMode.Norm1))
     }
 }
