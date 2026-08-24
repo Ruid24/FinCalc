@@ -3,6 +3,7 @@ package com.fincalc.app.ui.keyboard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -32,12 +33,12 @@ fun Keypad(
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (row in rows) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 for (key in row) {
                     val active = shift && key.shiftLabel != null
                     Button(
                         onClick = { if (active) (key.onShiftPress ?: key.onPress)() else key.onPress() },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (active) Color(0xFF39493B) else Color(0xFF232B25)
                         ),
