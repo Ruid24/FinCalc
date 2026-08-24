@@ -36,6 +36,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（Task 3 实现子代理回报+控制器排查）：①计划代码误用 `intersperse`——该函数**不在 Kotlin 标准库**（子代理已对缓存的 stdlib jar 实证 grep 为零）；已在 MathBuilder.kt 末尾补私有扩展实现。②MathBuilderTest 的 `build()` 助手误把单语句也走 Program 包装（返回 RowBox 而非表达式自身的盒子），导致 7 个结构断言失败；已改为单语句取 `statements[0]`。③`flatten` 曾不产出容器节点自身，致 `log with base has sub box` 的 SubBox 断言永假；已改为先含自身再递归。
 - 2026-08-24（Task 2 质量审查发现）：`Settings` 缺 **Payment（期初/期末）** 与 **dn（CI/SI 奇数期利息）** 两项——它们是 CMPD 求解器的必填形参且属说明书 CN-19 设置屏，非计划留白。已补入 Settings（CalcState.kt）、Prefs 序列化（计划 5 Task 4 块）、CalcStateTest 回归（6 测）。其余备注（非阻塞）：`history` 公有 MutableList 的越界隐患（建议后续改只读视图）；Ans 双写无害重复。
 - 2026-08-24（Task 1 实现子代理回报）：NumberFormatterTest 两处期望值错误——①`12345678901` 的 10 位舍入结果应为 `1.23456789E10` 而非 `1.234567891E10`，已改输入为 `12345678905.0`（保留进位路径覆盖）；②`100.0` 在 Norm2 下应为 `"100"` 而非 `"1E2"`（整百不转指数，符合真机）。已修正（计划+代码同步）。质量审查后补测 Norm 下界精确值与进位跨界两例（8 测）。
 
@@ -594,6 +595,10 @@ object MathBuilder {
 
     private fun row(m: TextMeasure, em: Float, scale: Float, boxes: List<MathBox>): RowBox =
         RowBox(boxes)
+
+    /** 在元素间插入分隔符（Kotlin 标准库无此函数，自行实现）。 */
+    private fun <T> List<T>.intersperse(sep: T): List<T> =
+        flatMapIndexed { i, item -> if (i == 0) listOf(item) else listOf(sep, item) }
 }
 ```
 
@@ -611,7 +616,15 @@ class MathBuilderTest {
     private val fake = TextMeasure { t, s -> (t.length * 10f * s) to (20f * s) }
     private val em = 20f
 
-    private fun build(input: String): MathBox = MathBuilder.build(ExprEngine.parse(input), fake, em)
+    private fun build(input: String): MathBox {
+        val program = ExprEngine.parse(input)
+        // 单语句直接取该表达式的盒子；多语句走 Program 拼接（" : " 分隔）
+        return if (program.statements.size == 1) {
+            MathBuilder.build(program.statements[0], fake, em)
+        } else {
+            MathBuilder.build(program, fake, em)
+        }
+    }
 
     @Test
     fun `plain number is text box`() {
@@ -727,11 +740,11 @@ class MathBuilderTest {
     private fun collectTexts(b: MathBox): List<String> = flatten(b).filterIsInstance<TextBox>().map { it.text }
 
     private fun flatten(b: MathBox): List<MathBox> = when (b) {
-        is RowBox -> b.children.flatMap { flatten(it) }
-        is FracBox -> flatten(b.num) + flatten(b.den)
-        is SupBox -> flatten(b.base) + flatten(b.sup)
-        is SubBox -> flatten(b.base) + flatten(b.sub)
-        is SqrtBox -> (b.index?.let { flatten(it) } ?: emptyList()) + flatten(b.content)
+        is RowBox -> listOf(b) + b.children.flatMap { flatten(it) }
+        is FracBox -> listOf(b) + flatten(b.num) + flatten(b.den)
+        is SupBox -> listOf(b) + flatten(b.base) + flatten(b.sup)
+        is SubBox -> listOf(b) + flatten(b.base) + flatten(b.sub)
+        is SqrtBox -> listOf(b) + (b.index?.let { flatten(it) } ?: emptyList()) + flatten(b.content)
         else -> listOf(b)
     }
 }
