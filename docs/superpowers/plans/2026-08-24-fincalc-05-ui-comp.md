@@ -36,6 +36,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（整体终审）：PASS WITH NOTES（213 测 0 败 / 22 类、APK 产出、跨层链路完整、Prefs↔Settings 12 字段双向完备、语言注入时序正确、走查清单 10 项均有实现支撑）。终审新发现两处顺手修复：①Latex.kt KDoc 仍写"供 AndroidMath 渲染"（路线已弃）——已改为指向自研排版器（计划 2 文本同步）；②CompScreen.kt 3 个未用 import（verticalScroll/TextStyle/Mode）——已清理（计划 Task 5 块同步）。待计划 6 注意点：CalcState.vars 非 Compose 可观察（变量列表 UI 须自带可观察态）；Key/Keypad 无长按钩子（学习辅助"长按公式"的前置扩展点）。
 - 2026-08-24（Task 6 质量审查发现，已修复）：①**语言切换机制不可靠**——`Locale.setDefault+recreate` 在 API 24+ 不改变重建后 Activity 的资源配置（Configuration 来自系统 locale，非 JVM 默认），双语切换这一验收点将失效；已改为 `attachBaseContext` + `createConfigurationContext` 注入持久化 locale（对所有 API 级别确定生效），同时顺势接线 Prefs（onCreate 同步 load、onPause 异步 save、SettingsDialog 语言切换先持久化再 recreate）。②非 COMP 占位界面无返回通道（单向门）——已加"返回"按钮。③规格审查：ModeDialog KDoc 与计划措辞差（磁盘版与实际行为更吻合），计划已同步。非阻塞备注：已显示结果不随 Fix/Sci/Norm 切换即时重排版（下次 EXE 生效，真机会即时重显——列入计划 6）；RadioButton 旁文字不可点；语言切换无"已是当前语言"守卫。
 - 2026-08-24（Task 5 质量审查发现，FAIL 级已修复）：**CalcState 的 mode/shift/settings 是普通 Kotlin var，Compose 不观察**——SHIFT 指示符/键面不刷新、按键动作按旧组合态插入（错位一档）、SHIFT 粘滞不复位。已修复：①三者改 `mutableStateOf` 委托（compose runtime 为纯 JVM，不违反 state 的"无 android import"约束）；②`clearShift()` 加入 CalcState 并在 `CompController.insert` 末尾消费（真机：SHIFT 只作用于下一次按键）；③`isOperatorStart` 修正：去掉会产生非法 "Ans)" 的 `)`，补上 `² ³ ˣ√( nPr nCr`（EXE 后按 x² 应得 Ans²）。新增 CompControllerTest 锁定（6 测）。连带：可变属性委托生成 JVM setter 与原 `setMode` 方法签名冲突——`setMode` 改名 `switchMode`。非阻塞备注：SqrtBox 根号线宽为固定物理像素未随 em 缩放、底部顶点裁边约 1px（纯视觉）；输入中间态降级线性文本的闪烁（后续可"保留最后成功排版"优化）；横向滚动不自动跟光标（UX 注）。
 - 2026-08-24（Task 4 双审查）：①质量审查发现 themes.xml 缺 `windowLightStatusBar=false`（Material.Light 默认深色状态栏图标，黑底下不可见）——已在计划与磁盘同步补一行。②其余备注（非阻塞未改码）：历史 load 未按 HISTORY_CAP 截断；历史序列化的 tab 注入理论边缘（当前键盘无法产生 \t，loader 有丢弃兜底）；periodsPerYear 无范围校验；Prefs 尚无调用点（计划 5 Task 5+ 接线时需注意 load/save 串行化）。规格审查 PASS（5 文件逐字一致）。
@@ -1393,18 +1394,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.fincalc.app.state.CalcState
-import com.fincalc.app.state.Mode
 import com.fincalc.app.ui.keyboard.Key
 import com.fincalc.app.ui.keyboard.Keypad
 import com.fincalc.app.ui.math.MathView

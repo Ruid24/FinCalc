@@ -1,8 +1,9 @@
 package com.fincalc.app.core.expr
 
 /**
- * 排版器：AST → LaTeX 字符串（供计划 5 的 AndroidMath 渲染）。
- * 只使用该库保守支持的子集；排版约定见计划 2 头部，测试逐字锁定。
+ * 排版器：AST → LaTeX 字符串。
+ * 排版约定见计划 2 头部，测试逐字锁定。UI 的自然显示由 core/render 的自研排版器承担
+ * （AndroidMath 路线已弃用）；本类保留为 LaTeX 文本通道（调试/日志/将来换库的备用）。
  */
 object Latex {
 
