@@ -35,6 +35,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-25（Task 2 双审查）：①规格审查——实现方省略了计划 import 块中两个未使用 import（无害清理），计划已同步为磁盘版本。②质量审查发现闪烁光标的 alpha 读取挂在组合作用域上，导致**每帧重组 + 每帧两次 解析+测量**（持续空转耗电）；已修复：测量结果 `remember(input, cursor, baseTextSize)` 缓存 + 光标条常驻用 `Modifier.alpha` 控制显隐。③触控落点 `toInt` 向零取整左偏半字符——已改 `roundToInt`。④MathView 降级文本与光标测量的字体不一致（Roboto vs Serif）——降级 Text 补 `FontFamily.Serif`（计划 5 文本同步）。备注（不修）：前缀排版在分数/自动加括号内部的光标 x 有系统性近似偏差（设计决策已声明）；输入行无 auto-scroll-to-cursor（后续 UX 优化）。
 - 2026-08-24（Task 2 实现子代理强制修正+控制器收尾）：`setCursor` 函数与 `cursor` 属性委托生成同名 JVM setter 冲突（与计划 5 的 setMode 同类）——实现方按授权加 `@JvmName("setCursorPosition")`（Kotlin 层 API 不变），计划文本已同步；控制器顺手清理了 CompScreen 中因换用 InputLine 而失效的 MathView 导入。构建通过。
 - 2026-08-24（Task 1 质量审查发现，已修复）：Keypad 行无 weight、M3 Button 固定最小高 40dp——weight(3f) 只分配槽位未拉伸键，高屏底部留白、矮屏裁切底部行。已修：行加 `weight(1f)`、键加 `fillMaxHeight`（提交 a7aea29）。规格审查 PASS（KeyLayouts 逐字一致 + CompScreen 四处改动点齐全；`media/` 保持未跟踪）。
 
@@ -152,11 +153,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -167,6 +168,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fincalc.app.ui.math.MathView
 import com.fincalc.app.ui.math.measurePrefixWidth
+import kotlin.math.roundToInt
 
 /** 排版输入行 + 闪烁光标 + 触控定位（用户反馈 2026-08-24）。 */
 @Composable
@@ -181,8 +183,13 @@ fun InputLine(
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val em = with(density) { baseTextSize.toPx() }
-    val cursorX = measurePrefixWidth(input.take(cursor.coerceIn(0, input.length)), textMeasurer, baseTextSize, em)
-    val totalW = measurePrefixWidth(input, textMeasurer, baseTextSize, em)
+    // 审查修复：测量结果缓存——闪烁动画每帧重组，避免每帧重解析+重测量
+    val cursorX = remember(input, cursor, baseTextSize) {
+        measurePrefixWidth(input.take(cursor.coerceIn(0, input.length)), textMeasurer, baseTextSize, em)
+    }
+    val totalW = remember(input, baseTextSize) {
+        measurePrefixWidth(input, textMeasurer, baseTextSize, em)
+    }
 
     // 闪烁（500ms 往复）
     val transition = rememberInfiniteTransition()
@@ -196,21 +203,20 @@ fun InputLine(
         modifier = modifier.pointerInput(input, totalW) {
             detectTapGestures { offset ->
                 val ratio = if (totalW > 0) (offset.x / totalW).coerceIn(0f, 1f) else 0f
-                onCursorTap((ratio * input.length).toInt())
+                onCursorTap((ratio * input.length).roundToInt())
             }
         }
     ) {
         MathView(input, baseTextSize = baseTextSize, color = color)
-        // 光标条
-        if (alpha > 0.5f) {
-            Box(
-                modifier = Modifier
-                    .offset(x = with(density) { cursorX.toDp() }, y = 0.dp)
-                    .width(2.dp)
-                    .height(with(density) { (em * 1.1f).toDp() })
-                    .background(color)
-            )
-        }
+        // 光标条（常驻 + alpha 控制显隐）
+        Box(
+            modifier = Modifier
+                .offset(x = with(density) { cursorX.toDp() }, y = 0.dp)
+                .width(2.dp)
+                .height(with(density) { (em * 1.1f).toDp() })
+                .alpha(if (alpha > 0.5f) 1f else 0f)
+                .background(color)
+        )
     }
 }
 ```

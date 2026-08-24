@@ -73,7 +73,7 @@ fun MathView(
     if (program != null) {
         MathView(program, modifier, baseTextSize, color)
     } else {
-        androidx.compose.material3.Text(input, color = color, fontSize = baseTextSize, modifier = modifier)
+        androidx.compose.material3.Text(input, color = color, fontSize = baseTextSize, fontFamily = FontFamily.Serif, modifier = modifier)
     }
 }
 
