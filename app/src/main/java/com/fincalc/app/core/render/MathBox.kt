@@ -40,13 +40,18 @@ class FracBox(val num: MathBox, val den: MathBox, em: Float) : MathBox() {
     val denTop = num.height + 2 * gap + lineThickness
 }
 
-/** 上标（sup 缩小抬升；基线同底）。 */
+/** 上标（sup 缩小抬升）。sup 超出 base 顶部时整体上移 lift，保证墨迹落在盒内。 */
 class SupBox(val base: MathBox, val sup: MathBox, em: Float) : MathBox() {
     val shiftUp = 0.45f * em
+    /** 内容下移量：sup 的顶部不低于盒顶（审查修复：原契约 baseline/height/supTop 自相矛盾）。 */
+    val lift = maxOf(0f, sup.baseline + shiftUp - base.baseline)
     override val width = base.width + sup.width
-    override val baseline = base.baseline
-    val supTop = base.baseline - shiftUp - sup.baseline
-    override val height = base.height + maxOf(0f, -supTop)
+    override val baseline = base.baseline + lift
+    override val height = base.height + lift
+    /** base 距盒顶的偏移（= lift）。 */
+    val baseTop = lift
+    /** sup 距盒顶的偏移（非负）。 */
+    val supTop get() = baseline - shiftUp - sup.baseline
 }
 
 /** 下标（sub 缩小下移；仅 log 底数用；基线同底）。 */

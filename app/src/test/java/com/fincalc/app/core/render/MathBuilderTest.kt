@@ -54,15 +54,26 @@ class MathBuilderTest {
     }
 
     @Test
-    fun `sup keeps baseline and extends height`() {
+    fun `sup lifts content to keep ink inside box`() {
         val b = build("2^3")
         assertTrue(b is SupBox)
         val s = b as SupBox
         // 底 2：宽 10 基线 16；上标 3：scale 0.7 宽 7 高 14 基线 11.2
         assertEquals(17f, s.width, 1e-4f)
-        assertEquals(16f, s.baseline, 1e-4f)
-        // supTop = 16 − 9 − 11.2 = −4.2 → 高度 = 20 + 4.2
+        // lift = max(0, 11.2 + 9 − 16) = 4.2 → 基线 20.2、高 24.2、sup 顶恰为 0
+        assertEquals(20.2f, s.baseline, 1e-3f)
         assertEquals(24.2f, s.height, 1e-3f)
+        assertEquals(0f, s.supTop, 1e-3f)
+        assertEquals(4.2f, s.baseTop, 1e-3f)
+    }
+
+    @Test
+    fun `nested power uses single level script scale`() {
+        // 嵌套上标不二次缩小（有意决策：卡西欧真机只有一级脚本，与 TeX 惯例不同）
+        val b = build("2^3^2")
+        val outer = b as SupBox
+        val inner = outer.sup as SupBox
+        assertEquals(0.7f, (inner.sup as TextBox).scale, 1e-6f)
     }
 
     @Test

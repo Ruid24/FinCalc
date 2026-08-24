@@ -26,7 +26,7 @@ object MathBuilder {
         is Node.Sub -> row(m, em, scale, build(node.l, m, em, scale), text(" − ", m, em, scale), factor(node.r, m, em, scale))
         is Node.Mul -> row(m, em, scale, factor(node.l, m, em, scale), text(" × ", m, em, scale), factor(node.r, m, em, scale))
         is Node.Div -> FracBox(build(node.l, m, em, scale), build(node.r, m, em, scale), em)
-        is Node.ImplicitMul -> row(m, em, scale, factor(node.l, m, em, scale), text(" ", m, em, scale), factor(node.r, m, em, scale))
+        is Node.ImplicitMul -> row(m, em, scale, factor(node.l, m, em, scale), text(" ", m, em, scale), factor(node.r, m, em, scale))
         is Node.Neg -> row(m, em, scale, text("−", m, em, scale), factor(node.e, m, em, scale))
         is Node.Pow -> SupBox(base(node.base, m, em, scale), build(node.exp, m, em, SCRIPT), em)
         is Node.XRoot -> SqrtBox(build(node.radicand, m, em, scale), build(node.degree, m, em, SCRIPT), em)

@@ -36,6 +36,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（Task 3 双审查发现，已修复）：①规格审查——实现把隐式乘的窄空格（U+2009）误写为普通空格（U+0020），已改回（单字符差异，逐字比对捕获）。②质量审查——`SupBox` 原契约 `baseline=base.baseline` 与 `height=base.height+max(0,−supTop)` 自相矛盾（sup 恒向上溢出盒界 0.21em，`2^3` 都触发；绘制者无法同时满足基线对齐与墨迹在界内）；已改为 lift 模型（`baseline=base.baseline+lift`、`height=base.height+lift`、新增 `baseTop`/`supTop` 非负偏移），MathView 的 SupBox 绘制分支同步更新，测试锁定新契约并补嵌套幂单级脚本用例（12 测）。其余备注（非阻塞）：嵌套上标不二次缩小为有意决策（真机单级脚本）；TextMeasure 的 0.8h 基线启发式由 UI 层包装时对齐真实基线；SubBox 仅向下扩展（仅 log 底数用，实际不触发）。
 - 2026-08-24（Task 3 实现子代理回报+控制器排查）：①计划代码误用 `intersperse`——该函数**不在 Kotlin 标准库**（子代理已对缓存的 stdlib jar 实证 grep 为零）；已在 MathBuilder.kt 末尾补私有扩展实现。②MathBuilderTest 的 `build()` 助手误把单语句也走 Program 包装（返回 RowBox 而非表达式自身的盒子），导致 7 个结构断言失败；已改为单语句取 `statements[0]`。③`flatten` 曾不产出容器节点自身，致 `log with base has sub box` 的 SubBox 断言永假；已改为先含自身再递归。
 - 2026-08-24（Task 2 质量审查发现）：`Settings` 缺 **Payment（期初/期末）** 与 **dn（CI/SI 奇数期利息）** 两项——它们是 CMPD 求解器的必填形参且属说明书 CN-19 设置屏，非计划留白。已补入 Settings（CalcState.kt）、Prefs 序列化（计划 5 Task 4 块）、CalcStateTest 回归（6 测）。其余备注（非阻塞）：`history` 公有 MutableList 的越界隐患（建议后续改只读视图）；Ans 双写无害重复。
 - 2026-08-24（Task 1 实现子代理回报）：NumberFormatterTest 两处期望值错误——①`12345678901` 的 10 位舍入结果应为 `1.23456789E10` 而非 `1.234567891E10`，已改输入为 `12345678905.0`（保留进位路径覆盖）；②`100.0` 在 Norm2 下应为 `"100"` 而非 `"1E2"`（整百不转指数，符合真机）。已修正（计划+代码同步）。质量审查后补测 Norm 下界精确值与进位跨界两例（8 测）。
@@ -449,13 +450,18 @@ class FracBox(val num: MathBox, val den: MathBox, em: Float) : MathBox() {
     val denTop = num.height + 2 * gap + lineThickness
 }
 
-/** 上标（sup 缩小抬升；基线同底）。 */
+/** 上标（sup 缩小抬升）。sup 超出 base 顶部时整体上移 lift，保证墨迹落在盒内。 */
 class SupBox(val base: MathBox, val sup: MathBox, em: Float) : MathBox() {
     val shiftUp = 0.45f * em
+    /** 内容下移量：sup 的顶部不低于盒顶（审查修复：原契约 baseline/height/supTop 自相矛盾）。 */
+    val lift = maxOf(0f, sup.baseline + shiftUp - base.baseline)
     override val width = base.width + sup.width
-    override val baseline = base.baseline
-    val supTop = base.baseline - shiftUp - sup.baseline
-    override val height = base.height + maxOf(0f, -supTop)
+    override val baseline = base.baseline + lift
+    override val height = base.height + lift
+    /** base 距盒顶的偏移（= lift）。 */
+    val baseTop = lift
+    /** sup 距盒顶的偏移（非负）。 */
+    val supTop get() = baseline - shiftUp - sup.baseline
 }
 
 /** 下标（sub 缩小下移；仅 log 底数用；基线同底）。 */
@@ -661,15 +667,26 @@ class MathBuilderTest {
     }
 
     @Test
-    fun `sup keeps baseline and extends height`() {
+    fun `sup lifts content to keep ink inside box`() {
         val b = build("2^3")
         assertTrue(b is SupBox)
         val s = b as SupBox
         // 底 2：宽 10 基线 16；上标 3：scale 0.7 宽 7 高 14 基线 11.2
         assertEquals(17f, s.width, 1e-4f)
-        assertEquals(16f, s.baseline, 1e-4f)
-        // supTop = 16 − 9 − 11.2 = −4.2 → 高度 = 20 + 4.2
+        // lift = max(0, 11.2 + 9 − 16) = 4.2 → 基线 20.2、高 24.2、sup 顶恰为 0
+        assertEquals(20.2f, s.baseline, 1e-3f)
         assertEquals(24.2f, s.height, 1e-3f)
+        assertEquals(0f, s.supTop, 1e-3f)
+        assertEquals(4.2f, s.baseTop, 1e-3f)
+    }
+
+    @Test
+    fun `nested power uses single level script scale`() {
+        // 嵌套上标不二次缩小（有意决策：卡西欧真机只有一级脚本，与 TeX 惯例不同）
+        val b = build("2^3^2")
+        val outer = b as SupBox
+        val inner = outer.sup as SupBox
+        assertEquals(0.7f, (inner.sup as TextBox).scale, 1e-6f)
     }
 
     @Test
@@ -1068,7 +1085,7 @@ private fun DrawScope.drawBox(box: MathBox, x: Float, yTop: Float, m: TextMeasur
             drawBox(box.den, x + (box.width - box.den.width) / 2, yTop + box.denTop, m, baseTextSize, color)
         }
         is SupBox -> {
-            drawBox(box.base, x, yTop, m, baseTextSize, color)
+            drawBox(box.base, x, yTop + box.baseTop, m, baseTextSize, color)
             drawBox(box.sup, x + box.base.width, yTop + box.supTop, m, baseTextSize, color)
         }
         is SubBox -> {
