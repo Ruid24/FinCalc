@@ -14,6 +14,7 @@ import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.HistoryEntry
 import com.fincalc.app.state.Settings
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore by preferencesDataStore(name = "fincalc")
 
@@ -61,6 +62,11 @@ object Prefs {
                 if (i <= 0) null else HistoryEntry(line.substring(0, i), line.substring(i + 1).toDoubleOrNull() ?: return@mapNotNull null)
             }
         }
+    }
+
+    /** 启动最早点（attachBaseContext）的同步语言读取；DataStore 一次性读取量小。 */
+    fun loadLocaleBlocking(context: Context): Boolean = runBlocking {
+        context.dataStore.data.first()[KEY_CHINESE] ?: true
     }
 
     suspend fun save(context: Context, state: CalcState) {

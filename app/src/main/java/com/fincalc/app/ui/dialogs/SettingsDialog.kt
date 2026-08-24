@@ -9,6 +9,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -16,13 +17,16 @@ import androidx.compose.ui.res.stringResource
 import com.fincalc.app.R
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.core.expr.DisplayMode
+import com.fincalc.app.data.Prefs
 import com.fincalc.app.state.CalcState
-import java.util.Locale
+import kotlinx.coroutines.launch
 
-/** 设置对话框：角度单位、数值显示、界面语言（切换即重建 Activity 生效）。 */
+/** 设置对话框：角度单位、数值显示、界面语言（持久化后重建 Activity 生效）。 */
 @Composable
 fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
-    val activity = LocalContext.current as? Activity
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
@@ -72,7 +76,7 @@ fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
                         selected = state.settings.chinese,
                         onClick = {
                             state.settings = state.settings.copy(chinese = true)
-                            Locale.setDefault(Locale.SIMPLIFIED_CHINESE)
+                            scope.launch { Prefs.save(context, state) }
                             activity?.recreate()
                         }
                     )
@@ -81,7 +85,7 @@ fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
                         selected = !state.settings.chinese,
                         onClick = {
                             state.settings = state.settings.copy(chinese = false)
-                            Locale.setDefault(Locale.ENGLISH)
+                            scope.launch { Prefs.save(context, state) }
                             activity?.recreate()
                         }
                     )

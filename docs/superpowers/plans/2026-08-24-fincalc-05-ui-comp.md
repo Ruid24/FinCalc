@@ -36,6 +36,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（Task 6 质量审查发现，已修复）：①**语言切换机制不可靠**——`Locale.setDefault+recreate` 在 API 24+ 不改变重建后 Activity 的资源配置（Configuration 来自系统 locale，非 JVM 默认），双语切换这一验收点将失效；已改为 `attachBaseContext` + `createConfigurationContext` 注入持久化 locale（对所有 API 级别确定生效），同时顺势接线 Prefs（onCreate 同步 load、onPause 异步 save、SettingsDialog 语言切换先持久化再 recreate）。②非 COMP 占位界面无返回通道（单向门）——已加"返回"按钮。③规格审查：ModeDialog KDoc 与计划措辞差（磁盘版与实际行为更吻合），计划已同步。非阻塞备注：已显示结果不随 Fix/Sci/Norm 切换即时重排版（下次 EXE 生效，真机会即时重显——列入计划 6）；RadioButton 旁文字不可点；语言切换无"已是当前语言"守卫。
 - 2026-08-24（Task 5 质量审查发现，FAIL 级已修复）：**CalcState 的 mode/shift/settings 是普通 Kotlin var，Compose 不观察**——SHIFT 指示符/键面不刷新、按键动作按旧组合态插入（错位一档）、SHIFT 粘滞不复位。已修复：①三者改 `mutableStateOf` 委托（compose runtime 为纯 JVM，不违反 state 的"无 android import"约束）；②`clearShift()` 加入 CalcState 并在 `CompController.insert` 末尾消费（真机：SHIFT 只作用于下一次按键）；③`isOperatorStart` 修正：去掉会产生非法 "Ans)" 的 `)`，补上 `² ³ ˣ√( nPr nCr`（EXE 后按 x² 应得 Ans²）。新增 CompControllerTest 锁定（6 测）。连带：可变属性委托生成 JVM setter 与原 `setMode` 方法签名冲突——`setMode` 改名 `switchMode`。非阻塞备注：SqrtBox 根号线宽为固定物理像素未随 em 缩放、底部顶点裁边约 1px（纯视觉）；输入中间态降级线性文本的闪烁（后续可"保留最后成功排版"优化）；横向滚动不自动跟光标（UX 注）。
 - 2026-08-24（Task 4 双审查）：①质量审查发现 themes.xml 缺 `windowLightStatusBar=false`（Material.Light 默认深色状态栏图标，黑底下不可见）——已在计划与磁盘同步补一行。②其余备注（非阻塞未改码）：历史 load 未按 HISTORY_CAP 截断；历史序列化的 tab 注入理论边缘（当前键盘无法产生 \t，loader 有丢弃兜底）；periodsPerYear 无范围校验；Prefs 尚无调用点（计划 5 Task 5+ 接线时需注意 load/save 串行化）。规格审查 PASS（5 文件逐字一致）。
 - 2026-08-24（Task 3 双审查发现，已修复）：①规格审查——实现把隐式乘的窄空格（U+2009）误写为普通空格（U+0020），已改回（单字符差异，逐字比对捕获）。②质量审查——`SupBox` 原契约 `baseline=base.baseline` 与 `height=base.height+max(0,−supTop)` 自相矛盾（sup 恒向上溢出盒界 0.21em，`2^3` 都触发；绘制者无法同时满足基线对齐与墨迹在界内）；已改为 lift 模型（`baseline=base.baseline+lift`、`height=base.height+lift`、新增 `baseTop`/`supTop` 非负偏移），MathView 的 SupBox 绘制分支同步更新，测试锁定新契约并补嵌套幂单级脚本用例（12 测）。其余备注（非阻塞）：嵌套上标不二次缩小为有意决策（真机单级脚本）；TextMeasure 的 0.8h 基线启发式由 UI 层包装时对齐真实基线；SubBox 仅向下扩展（仅 log 底数用，实际不触发）。
@@ -828,6 +829,7 @@ import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.HistoryEntry
 import com.fincalc.app.state.Settings
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore by preferencesDataStore(name = "fincalc")
 
@@ -875,6 +877,11 @@ object Prefs {
                 if (i <= 0) null else HistoryEntry(line.substring(0, i), line.substring(i + 1).toDoubleOrNull() ?: return@mapNotNull null)
             }
         }
+    }
+
+    /** 启动最早点（attachBaseContext）的同步语言读取；DataStore 一次性读取量小。 */
+    fun loadLocaleBlocking(context: Context): Boolean = runBlocking {
+        context.dataStore.data.first()[KEY_CHINESE] ?: true
     }
 
     suspend fun save(context: Context, state: CalcState) {
@@ -1637,7 +1644,7 @@ import com.fincalc.app.R
 import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.Mode
 
-/** 模式选择对话框：12 模式网格。非 COMP 模式选中后弹提示并切回（计划 6 实现界面）。 */
+/** 模式选择对话框：12 模式网格。非 COMP 模式选中后切换（界面为占位，计划 6 实现）。 */
 @Composable
 fun ModeDialog(state: CalcState, onDismiss: () -> Unit) {
     val modes = Mode.entries.toList()
@@ -1691,6 +1698,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -1698,13 +1706,16 @@ import androidx.compose.ui.res.stringResource
 import com.fincalc.app.R
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.core.expr.DisplayMode
+import com.fincalc.app.data.Prefs
 import com.fincalc.app.state.CalcState
-import java.util.Locale
+import kotlinx.coroutines.launch
 
-/** 设置对话框：角度单位、数值显示、界面语言（切换即重建 Activity 生效）。 */
+/** 设置对话框：角度单位、数值显示、界面语言（持久化后重建 Activity 生效）。 */
 @Composable
 fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
-    val activity = LocalContext.current as? Activity
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings)) },
@@ -1754,7 +1765,7 @@ fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
                         selected = state.settings.chinese,
                         onClick = {
                             state.settings = state.settings.copy(chinese = true)
-                            Locale.setDefault(Locale.SIMPLIFIED_CHINESE)
+                            scope.launch { Prefs.save(context, state) }
                             activity?.recreate()
                         }
                     )
@@ -1763,7 +1774,7 @@ fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
                         selected = !state.settings.chinese,
                         onClick = {
                             state.settings = state.settings.copy(chinese = false)
-                            Locale.setDefault(Locale.ENGLISH)
+                            scope.launch { Prefs.save(context, state) }
                             activity?.recreate()
                         }
                     )
@@ -1778,14 +1789,105 @@ fun SettingsDialog(state: CalcState, onDismiss: () -> Unit) {
 }
 ```
 
-- [ ] **Step 3: MainActivity.kt 修正**
-
-删除 Task 5 的两个占位对话框函数，顶部添加导入：
+- [ ] **Step 3: MainActivity.kt（整体替换为以下内容；含审查修复：attachBaseContext 语言注入 + Prefs 接线 + 占位返回通道）**
 
 ```kotlin
+package com.fincalc.app
+
+import android.content.Context
+import android.content.res.Configuration
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.fincalc.app.data.Prefs
+import com.fincalc.app.state.CalcState
+import com.fincalc.app.state.Mode
+import com.fincalc.app.ui.comp.CompController
+import com.fincalc.app.ui.comp.CompScreen
 import com.fincalc.app.ui.dialogs.ModeDialog
 import com.fincalc.app.ui.dialogs.SettingsDialog
+import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+
+class MainActivity : ComponentActivity() {
+
+    private val calcState = CalcState()
+
+    /**
+     * 按持久化的语言注入 locale（审查修复：Locale.setDefault 不会改变重建后的资源配置，
+     * 必须在 attachBaseContext 用 createConfigurationContext 注入，对所有 API 级别确定生效）。
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val chinese = Prefs.loadLocaleBlocking(newBase)
+        val config = Configuration(newBase.resources.configuration)
+        config.setLocale(if (chinese) Locale.SIMPLIFIED_CHINESE else Locale.ENGLISH)
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 启动时装入持久化的设置与历史（一次性同步读取，量小）
+        runBlocking { Prefs.load(this@MainActivity, calcState) }
+        setContent {
+            MaterialTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    FinCalcApp(calcState)
+                }
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        CoroutineScope(Dispatchers.IO).launch { Prefs.save(this@MainActivity, calcState) }
+    }
+}
+
+/** 应用入口：按当前模式分发界面；模式菜单与设置由对话框弹出。 */
+@Composable
+fun FinCalcApp(state: CalcState) {
+    var showModes by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    when (state.mode) {
+        Mode.COMP -> CompScreen(
+            controller = remember { CompController(state) },
+            onOpenModes = { showModes = true },
+            onOpenSettings = { showSettings = true }
+        )
+        else -> {
+            // 计划 6 实现其余模式；占位界面（带返回通道，避免单向门）
+            Column {
+                Text(stringResource(R.string.mode_coming_soon))
+                Button(onClick = { state.switchMode(Mode.COMP) }) {
+                    Text(stringResource(R.string.back))
+                }
+            }
+        }
+    }
+
+    if (showModes) ModeDialog(state, onDismiss = { showModes = false })
+    if (showSettings) SettingsDialog(state, onDismiss = { showSettings = false })
+}
 ```
+
+并给 strings.xml 双语补 `back` 词条（英文回退 `<string name="back">Back</string>`；中文 `<string name="back">返回</string>`）。
 
 - [ ] **Step 4: 构建验证并提交**
 

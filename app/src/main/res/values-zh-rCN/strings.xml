@@ -11,4 +11,5 @@
     <string name="date_mode">一年中的天数（Date Mode）</string>
     <string name="date_input">日期输入格式</string>
     <string name="history_empty">暂无历史</string>
+    <string name="back">返回</string>
 </resources>

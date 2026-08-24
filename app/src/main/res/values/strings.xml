@@ -11,4 +11,5 @@
     <string name="date_mode">Date Mode (days in year)</string>
     <string name="date_input">Date Input format</string>
     <string name="history_empty">No history</string>
+    <string name="back">Back</string>
 </resources>
