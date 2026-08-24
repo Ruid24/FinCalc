@@ -3,6 +3,7 @@ package com.fincalc.app.state
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.core.expr.DisplayMode
 import com.fincalc.app.core.expr.EvalContext
+import com.fincalc.app.core.finance.Cmpd
 import com.fincalc.app.core.finance.Days
 
 /** 12 个计算模式（设计文档 §5）。 */
@@ -12,6 +13,8 @@ enum class Mode { COMP, SMPL, CMPD, CASH, AMRT, CNVR, COST, DAYS, DEPR, BOND, BE
 data class Settings(
     val angle: AngleUnit = AngleUnit.DEG,
     val display: DisplayMode = DisplayMode.Norm1,
+    val payment: Cmpd.Payment = Cmpd.Payment.END,      // Payment：期初 Begin/期末 End（CMPD/AMRT）
+    val dn: Cmpd.OddPeriod = Cmpd.OddPeriod.CI,        // dn：奇数期利息 CI 复利/SI 单利（CMPD）
     val days360: Boolean = false,                    // Date Mode：false=365（默认）/true=360
     val dateFormat: Days.DateFormat = Days.DateFormat.MDY,
     val bondTerm: Boolean = false,                   // Bond Date：false=Date/true=Term

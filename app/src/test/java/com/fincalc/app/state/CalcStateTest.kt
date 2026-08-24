@@ -3,6 +3,7 @@ package com.fincalc.app.state
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.core.expr.DisplayMode
 import com.fincalc.app.core.expr.ExprEngine
+import com.fincalc.app.core.finance.Cmpd
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -59,5 +60,16 @@ class CalcStateTest {
         s.setMode(Mode.CMPD)
         assertEquals(false, s.shift)
         assertEquals(Mode.CMPD, s.mode)
+    }
+
+    @Test
+    fun `settings carry payment and dn for cmpd wiring`() {
+        // 审查发现补测：Payment/dn 是 CMPD 求解器必填形参（计划 6 接线来源）
+        val s = CalcState()
+        assertEquals(Cmpd.Payment.END, s.settings.payment)
+        assertEquals(Cmpd.OddPeriod.CI, s.settings.dn)
+        val s2 = CalcState(Settings(payment = Cmpd.Payment.BEGIN, dn = Cmpd.OddPeriod.SI))
+        assertEquals(Cmpd.Payment.BEGIN, s2.settings.payment)
+        assertEquals(Cmpd.OddPeriod.SI, s2.settings.dn)
     }
 }

@@ -36,7 +36,8 @@
 
 **修订记录（执行期）：**
 
-- 2026-08-24（Task 1 实现子代理回报）：NumberFormatterTest 两处期望值错误——①`12345678901` 的 10 位舍入结果应为 `1.23456789E10` 而非 `1.234567891E10`，已改输入为 `12345678905.0`（保留进位路径覆盖）；②`100.0` 在 Norm2 下应为 `"100"` 而非 `"1E2"`（整百不转指数，符合真机）。已修正（计划+代码同步）。
+- 2026-08-24（Task 2 质量审查发现）：`Settings` 缺 **Payment（期初/期末）** 与 **dn（CI/SI 奇数期利息）** 两项——它们是 CMPD 求解器的必填形参且属说明书 CN-19 设置屏，非计划留白。已补入 Settings（CalcState.kt）、Prefs 序列化（计划 5 Task 4 块）、CalcStateTest 回归（6 测）。其余备注（非阻塞）：`history` 公有 MutableList 的越界隐患（建议后续改只读视图）；Ans 双写无害重复。
+- 2026-08-24（Task 1 实现子代理回报）：NumberFormatterTest 两处期望值错误——①`12345678901` 的 10 位舍入结果应为 `1.23456789E10` 而非 `1.234567891E10`，已改输入为 `12345678905.0`（保留进位路径覆盖）；②`100.0` 在 Norm2 下应为 `"100"` 而非 `"1E2"`（整百不转指数，符合真机）。已修正（计划+代码同步）。质量审查后补测 Norm 下界精确值与进位跨界两例（8 测）。
 
 ---
 
@@ -203,6 +204,7 @@ package com.fincalc.app.state
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.core.expr.DisplayMode
 import com.fincalc.app.core.expr.EvalContext
+import com.fincalc.app.core.finance.Cmpd
 import com.fincalc.app.core.finance.Days
 
 /** 12 个计算模式（设计文档 §5）。 */
@@ -212,6 +214,8 @@ enum class Mode { COMP, SMPL, CMPD, CASH, AMRT, CNVR, COST, DAYS, DEPR, BOND, BE
 data class Settings(
     val angle: AngleUnit = AngleUnit.DEG,
     val display: DisplayMode = DisplayMode.Norm1,
+    val payment: Cmpd.Payment = Cmpd.Payment.END,      // Payment：期初 Begin/期末 End（CMPD/AMRT）
+    val dn: Cmpd.OddPeriod = Cmpd.OddPeriod.CI,        // dn：奇数期利息 CI 复利/SI 单利（CMPD）
     val days360: Boolean = false,                    // Date Mode：false=365（默认）/true=360
     val dateFormat: Days.DateFormat = Days.DateFormat.MDY,
     val bondTerm: Boolean = false,                   // Bond Date：false=Date/true=Term
@@ -307,6 +311,7 @@ package com.fincalc.app.state
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.core.expr.DisplayMode
 import com.fincalc.app.core.expr.ExprEngine
+import com.fincalc.app.core.finance.Cmpd
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -363,6 +368,17 @@ class CalcStateTest {
         s.setMode(Mode.CMPD)
         assertEquals(false, s.shift)
         assertEquals(Mode.CMPD, s.mode)
+    }
+
+    @Test
+    fun `settings carry payment and dn for cmpd wiring`() {
+        // 审查发现补测：Payment/dn 是 CMPD 求解器必填形参（计划 6 接线来源）
+        val s = CalcState()
+        assertEquals(Cmpd.Payment.END, s.settings.payment)
+        assertEquals(Cmpd.OddPeriod.CI, s.settings.dn)
+        val s2 = CalcState(Settings(payment = Cmpd.Payment.BEGIN, dn = Cmpd.OddPeriod.SI))
+        assertEquals(Cmpd.Payment.BEGIN, s2.settings.payment)
+        assertEquals(Cmpd.OddPeriod.SI, s2.settings.dn)
     }
 }
 ```
@@ -763,6 +779,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.core.expr.DisplayMode
+import com.fincalc.app.core.finance.Cmpd
 import com.fincalc.app.core.finance.Days
 import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.HistoryEntry
@@ -776,6 +793,8 @@ object Prefs {
 
     private val KEY_ANGLE = stringPreferencesKey("angle")
     private val KEY_DISPLAY = stringPreferencesKey("display")
+    private val KEY_PAYMENT = stringPreferencesKey("payment")
+    private val KEY_DN = stringPreferencesKey("dn")
     private val KEY_DAYS360 = booleanPreferencesKey("days360")
     private val KEY_DATE_FORMAT = stringPreferencesKey("dateFormat")
     private val KEY_BOND_TERM = booleanPreferencesKey("bondTerm")
@@ -791,6 +810,9 @@ object Prefs {
         val settings = Settings(
             angle = p[KEY_ANGLE]?.let { runCatching { AngleUnit.valueOf(it) }.getOrNull() } ?: AngleUnit.DEG,
             display = parseDisplay(p[KEY_DISPLAY]),
+            payment = p[KEY_PAYMENT]?.let { runCatching { Cmpd.Payment.valueOf(it) }.getOrNull() }
+                ?: Cmpd.Payment.END,
+            dn = p[KEY_DN]?.let { runCatching { Cmpd.OddPeriod.valueOf(it) }.getOrNull() } ?: Cmpd.OddPeriod.CI,
             days360 = p[KEY_DAYS360] ?: false,
             dateFormat = p[KEY_DATE_FORMAT]?.let { runCatching { Days.DateFormat.valueOf(it) }.getOrNull() }
                 ?: Days.DateFormat.MDY,
@@ -816,6 +838,8 @@ object Prefs {
         context.dataStore.edit { p ->
             p[KEY_ANGLE] = state.settings.angle.name
             p[KEY_DISPLAY] = formatDisplay(state.settings.display)
+            p[KEY_PAYMENT] = state.settings.payment.name
+            p[KEY_DN] = state.settings.dn.name
             p[KEY_DAYS360] = state.settings.days360
             p[KEY_DATE_FORMAT] = state.settings.dateFormat.name
             p[KEY_BOND_TERM] = state.settings.bondTerm
