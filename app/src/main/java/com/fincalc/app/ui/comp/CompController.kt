@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import com.fincalc.app.core.expr.CalcException
 import com.fincalc.app.core.expr.ExprEngine
 import com.fincalc.app.state.CalcState
+import kotlin.jvm.JvmName
 
 /** COMP 模式控制器：输入行（String + 光标）、求值、错误、历史回溯、Ans 续算。 */
 class CompController(val state: CalcState) {
@@ -61,6 +62,13 @@ class CompController(val state: CalcState) {
 
     fun moveRight() {
         if (cursor < input.length) cursor++
+    }
+
+    /** 触控定位光标（用户反馈 2026-08-24）。 */
+    @JvmName("setCursorPosition")
+    fun setCursor(pos: Int) {
+        cursor = pos.coerceIn(0, input.length)
+        errorText = null
     }
 
     fun execute() {

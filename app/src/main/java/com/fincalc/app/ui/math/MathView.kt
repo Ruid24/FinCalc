@@ -128,3 +128,27 @@ private fun DrawScope.drawBox(box: MathBox, x: Float, yTop: Float, m: TextMeasur
         }
     }
 }
+
+/** 前缀排版宽度（光标定位用）：前缀可解析则精确，否则线性文本近似。 */
+fun measurePrefixWidth(
+    prefix: String,
+    m: TextMeasurer,
+    baseTextSize: androidx.compose.ui.unit.TextUnit,
+    em: Float
+): Float {
+    if (prefix.isEmpty()) return 0f
+    val measure = TextMeasure { text, scale ->
+        val layout = m.measure(text, TextStyle(fontSize = baseTextSize * scale, fontFamily = FontFamily.Serif))
+        layout.size.width.toFloat() to layout.size.height.toFloat()
+    }
+    val program = try {
+        ExprEngine.parse(prefix)
+    } catch (e: Exception) {
+        null
+    }
+    return if (program != null) {
+        MathBuilder.build(program, measure, em).width
+    } else {
+        m.measure(prefix, TextStyle(fontSize = baseTextSize, fontFamily = FontFamily.Serif)).size.width.toFloat()
+    }
+}

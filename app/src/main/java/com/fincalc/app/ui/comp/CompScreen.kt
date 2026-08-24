@@ -59,7 +59,7 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
                 if (controller.input.isEmpty()) {
                     Text("0", color = Color(0xFFE8F5E9), fontSize = 22.sp, fontFamily = FontFamily.Serif)
                 } else {
-                    MathView(controller.input, baseTextSize = 22.sp)
+                    InputLine(input = controller.input, cursor = controller.cursor, onCursorTap = { controller.setCursor(it) }, baseTextSize = 22.sp)
                 }
             }
             // 结果/错误行（右对齐；显示时按当前 Fix/Sci/Norm 格式化——设置变更即时重显，真机行为）
