@@ -1913,15 +1913,15 @@ source .dev/env.sh
 ls -la app/build/outputs/apk/debug/app-debug.apk
 ```
 
-预期：全绿（181 + 6 + 5 + 11 = 203 测）；APK 产出。
+预期：全绿（181 + 8 + 6 + 12 + 6 = 213 测）；APK 产出。
 
-- [ ] **Step 2: core 纯 Kotlin 验证**
+- [ ] **Step 2: core 纯 Kotlin 验证（不含安卓框架依赖）**
 
 ```bash
-grep -rn "import android" app/src/main/java/com/fincalc/app/core/ app/src/main/java/com/fincalc/app/state/ ; echo "grep exit=$?"
+grep -rn "^import android\." app/src/main/java/com/fincalc/app/core/ app/src/main/java/com/fincalc/app/state/ ; echo "grep exit=$?"
 ```
 
-预期：core 与 state 均无匹配（exit=1）。
+预期：无任何匹配行，`grep exit=1`。注意用精确模式 `^import android\.`（android 框架包）：state 层含 `androidx.compose.runtime.*`（纯 JVM 快照库，JVM 单测实证可跑），不属于违规；松模式 `import android` 会误伤 `androidx` 前缀（修订记录 Task 5）。
 
 - [ ] **Step 3: 真机人工验证清单（写入提交信息/验收报告）**
 
@@ -1948,7 +1948,7 @@ git status --short
 
 ## 完成标准（计划 5 验收）
 
-- [ ] `./gradlew testDebugUnitTest` 全绿（203 测）
+- [ ] `./gradlew testDebugUnitTest` 全绿（213 测）
 - [ ] `./gradlew assembleDebug` 产出 APK
 - [ ] core/state 包无 `import android.*`
 - [ ] 真机走查清单 10 项逐项通过（用户人工执行）
