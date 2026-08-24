@@ -20,7 +20,6 @@ import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.ui.keyboard.Key
 import com.fincalc.app.ui.keyboard.Keypad
 import com.fincalc.app.ui.keyboard.modeKeyRows
-import com.fincalc.app.ui.math.MathView
 
 /** COMP 模式界面。上屏（输入实时排版 + 结果）下键（仿真键盘）。 */
 @Composable

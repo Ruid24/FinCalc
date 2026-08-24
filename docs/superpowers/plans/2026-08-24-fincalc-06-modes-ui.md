@@ -35,6 +35,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-24（Task 2 实现子代理强制修正+控制器收尾）：`setCursor` 函数与 `cursor` 属性委托生成同名 JVM setter 冲突（与计划 5 的 setMode 同类）——实现方按授权加 `@JvmName("setCursorPosition")`（Kotlin 层 API 不变），计划文本已同步；控制器顺手清理了 CompScreen 中因换用 InputLine 而失效的 MathView 导入。构建通过。
 - 2026-08-24（Task 1 质量审查发现，已修复）：Keypad 行无 weight、M3 Button 固定最小高 40dp——weight(3f) 只分配槽位未拉伸键，高屏底部留白、矮屏裁切底部行。已修：行加 `weight(1f)`、键加 `fillMaxHeight`（提交 a7aea29）。规格审查 PASS（KeyLayouts 逐字一致 + CompScreen 四处改动点齐全；`media/` 保持未跟踪）。
 
 ---
@@ -230,12 +231,15 @@ InputLine(
 注意：CompController 需新增光标写入入口（当前 `cursor` 是 `private set`）。在 CompController.kt 加：
 
 ```kotlin
-    /** 触控定位光标（用户反馈 2026-08-24）。 */
+    /** 触控定位光标（用户反馈 2026-08-24）。@JvmName 避开与属性 setter 的 JVM 签名冲突。 */
+    @JvmName("setCursorPosition")
     fun setCursor(pos: Int) {
         cursor = pos.coerceIn(0, input.length)
         errorText = null
     }
 ```
+
+（`@JvmName` 需 `import kotlin.jvm.JvmName`；属性委托生成 `setCursor(I)V` 与同名函数冲突，必须改名。）
 
 输入行的 Row 保持 `horizontalScroll`；触控定位的滚动偏移换算本计划从简（可视坐标直接映射，滚动后位置略有偏差可接受，后续再精确）。
 
