@@ -35,6 +35,8 @@
 
 **修订记录（执行期）：**
 
+- 2026-08-25（Task 3 实现子代理回报，两处已接纳）：①`expression input allowed` 测试期望值与 spec 冲突——Dys 标 `integer=true`，EXE 存入取整，20÷30+16 → 17 而非 16.67；实现方守约未动 spec/控制器，修正测试断言为 17.0 并加注释（计划文本已同步）。②计划的 `git add` 路径只覆盖 main 不含 test——已在计划全部 6 处统一补上 `app/src/test/java/com/fincalc/app/`。
+
 - 2026-08-25（Task 2 双审查）：①规格审查——实现方省略了计划 import 块中两个未使用 import（无害清理），计划已同步为磁盘版本。②质量审查发现闪烁光标的 alpha 读取挂在组合作用域上，导致**每帧重组 + 每帧两次 解析+测量**（持续空转耗电）；已修复：测量结果 `remember(input, cursor, baseTextSize)` 缓存 + 光标条常驻用 `Modifier.alpha` 控制显隐。③触控落点 `toInt` 向零取整左偏半字符——已改 `roundToInt`。④MathView 降级文本与光标测量的字体不一致（Roboto vs Serif）——降级 Text 补 `FontFamily.Serif`（计划 5 文本同步）。备注（不修）：前缀排版在分数/自动加括号内部的光标 x 有系统性近似偏差（设计决策已声明）；输入行无 auto-scroll-to-cursor（后续 UX 优化）。
 - 2026-08-24（Task 2 实现子代理强制修正+控制器收尾）：`setCursor` 函数与 `cursor` 属性委托生成同名 JVM setter 冲突（与计划 5 的 setMode 同类）——实现方按授权加 `@JvmName("setCursorPosition")`（Kotlin 层 API 不变），计划文本已同步；控制器顺手清理了 CompScreen 中因换用 InputLine 而失效的 MathView 导入。构建通过。
 - 2026-08-24（Task 1 质量审查发现，已修复）：Keypad 行无 weight、M3 Button 固定最小高 40dp——weight(3f) 只分配槽位未拉伸键，高屏底部留白、矮屏裁切底部行。已修：行加 `weight(1f)`、键加 `fillMaxHeight`（提交 a7aea29）。规格审查 PASS（KeyLayouts 逐字一致 + CompScreen 四处改动点齐全；`media/` 保持未跟踪）。
@@ -90,7 +92,7 @@ source .dev/env.sh
 - [ ] **Step 4: 提交**
 
 ```bash
-git add app/src/main/java/com/fincalc/app/ui/
+git add app/src/main/java/com/fincalc/app/ app/src/test/java/com/fincalc/app/ui/
 git commit -m "feat(ui): 屏键比例 1:3 + 金融模式键面上置两行（用户反馈，FC-200V 风格）"
 ```
 
@@ -254,7 +256,7 @@ InputLine(
 ```bash
 source .dev/env.sh
 ./gradlew assembleDebug
-git add app/src/main/java/com/fincalc/app/
+git add app/src/main/java/com/fincalc/app/ app/src/test/java/com/fincalc/app/
 git commit -m "feat(ui): 输入行闪烁光标 + 触控定位（用户反馈）"
 ```
 
@@ -674,13 +676,13 @@ class FinanceControllerTest {
 
     @Test
     fun `expression input allowed`() {
-        // CN-56：输入值允许表达式（16 个月 20 天 → 20÷30+16）
+        // CN-56：输入值允许表达式（20÷30+16 照常求值；Dys 标 integer，EXE 存入时取整 → 17）
         val s = CalcState()
         val (spec, _) = com.fincalc.app.ui.finance.modes.smplSpec(s)
         val c = FinanceController(s, spec) { 0.0 }
         c.insert("2"); c.insert("0"); c.insert("÷"); c.insert("3"); c.insert("0"); c.insert("+"); c.insert("1"); c.insert("6")
         c.exe()
-        assertEquals(16.0 + 20.0 / 30.0, s.getVar("Dys"), 1e-9)
+        assertEquals(17.0, s.getVar("Dys"), 1e-9)
     }
 
     @Test
@@ -710,7 +712,7 @@ class FinanceControllerTest {
 source .dev/env.sh
 ./gradlew testDebugUnitTest --tests "com.fincalc.app.ui.finance.FinanceControllerTest"
 ./gradlew assembleDebug
-git add app/src/main/java/com/fincalc/app/
+git add app/src/main/java/com/fincalc/app/ app/src/test/java/com/fincalc/app/
 git commit -m "feat(ui): 金融模式通用框架 + SMPL/CNVR/COST/DAYS 界面接线"
 ```
 
@@ -1102,7 +1104,7 @@ class TvmModesTest {
 source .dev/env.sh
 ./gradlew testDebugUnitTest --tests "com.fincalc.app.ui.finance.TvmModesTest"
 ./gradlew assembleDebug
-git add app/src/main/java/com/fincalc/app/
+git add app/src/main/java/com/fincalc/app/ app/src/test/java/com/fincalc/app/
 git commit -m "feat(ui): CMPD/AMRT/BOND/BEVN 模式接线（TVM 家族 + 损益六子模式）"
 ```
 
@@ -1394,7 +1396,7 @@ class CashStatTest {
 source .dev/env.sh
 ./gradlew testDebugUnitTest --tests "com.fincalc.app.ui.finance.CashStatTest"
 ./gradlew assembleDebug
-git add app/src/main/java/com/fincalc/app/
+git add app/src/main/java/com/fincalc/app/ app/src/test/java/com/fincalc/app/
 git commit -m "feat(ui): CASH 现金流编辑器 + STAT 统计（数据编辑器 + 回归结果浏览）"
 ```
 
@@ -1539,7 +1541,7 @@ class MemoryTest {
 source .dev/env.sh
 ./gradlew testDebugUnitTest --tests "com.fincalc.app.ui.comp.MemoryTest"
 ./gradlew assembleDebug
-git add app/src/main/java/com/fincalc/app/
+git add app/src/main/java/com/fincalc/app/ app/src/test/java/com/fincalc/app/
 git commit -m "feat(ui): STO/RCL/M+/M- 存储器 + 长按公式学习辅助 + 按键振动"
 ```
 
