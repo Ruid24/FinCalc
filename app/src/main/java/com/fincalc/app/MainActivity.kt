@@ -140,15 +140,15 @@ private fun financeKeys(c: FinanceController, state: CalcState): List<List<Key>>
     return modeKeyRows(state) + listOf(
         listOf(
             Key("SHIFT", onPress = { state.toggleShift() }),
-            Key("◀", onPress = { /* 表达式光标留计划内简化：金融编辑先退格 */ }),
-            Key("▶", onPress = { }),
+            Key("▲", onPress = { c.moveUp() }),
+            Key("▼", onPress = { c.moveDown() }),
             Key("DEL", onPress = { c.delete() }),
             Key("AC", onPress = { c.clear() }),
             Key("SOLVE", onPress = { c.solve() })
         ),
         listOf(ins("7"), ins("8"), ins("9"), ins("("), ins(")"), ins("÷")),
-        listOf(ins("4"), ins("5"), ins("6"), ins("-"), ins("×"), ins("+")),
-        listOf(ins("1"), ins("2"), ins("3"), ins("."), ins("-"), ins("%")),
-        listOf(ins("0"), ins("E"), ins("Ans"), Key("EXE", onPress = { c.exe() }), ins("π"), ins(","))
+        listOf(ins("4"), ins("5"), ins("6"), ins("×"), ins("+"), ins("E")),
+        listOf(ins("1"), ins("2"), ins("3"), ins("."), ins("%"), ins(",")),
+        listOf(ins("0"), ins("Ans"), ins("π"), ins("-"), Key("EXE", "SOLVE", onPress = { c.exe() }, onShiftPress = { c.solve() }))
     )
 }
