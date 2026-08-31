@@ -8,9 +8,13 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fincalc.app.data.Prefs
 import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.Mode
@@ -33,6 +39,11 @@ import com.fincalc.app.ui.finance.FinanceController
 import com.fincalc.app.ui.finance.FinanceScreen
 import com.fincalc.app.ui.finance.FinanceVar
 import com.fincalc.app.ui.finance.ModeScreenSpec
+import com.fincalc.app.ui.finance.modes.BevnSub
+import com.fincalc.app.ui.finance.modes.amrtSpec
+import com.fincalc.app.ui.finance.modes.bevnSpec
+import com.fincalc.app.ui.finance.modes.bondSpec
+import com.fincalc.app.ui.finance.modes.cmpdSpec
 import com.fincalc.app.ui.finance.modes.cnvrSpec
 import com.fincalc.app.ui.finance.modes.costSpec
 import com.fincalc.app.ui.finance.modes.daysSpec
@@ -85,6 +96,8 @@ class MainActivity : ComponentActivity() {
 fun FinCalcApp(state: CalcState) {
     var showModes by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    // BEVN 子模式（BEV/MOS/DOL/DFL/DCL/QTY）；remember 键 = state.mode，切模式即重置为 BEV
+    var bevnSub by remember(state.mode) { mutableStateOf(BevnSub.BEV) }
 
     when (state.mode) {
         Mode.COMP -> CompScreen(
@@ -98,6 +111,10 @@ fun FinCalcApp(state: CalcState) {
                 Mode.CNVR -> cnvrSpec(state)
                 Mode.COST -> costSpec(state)
                 Mode.DAYS -> daysSpec(state)
+                Mode.CMPD -> cmpdSpec(state)
+                Mode.AMRT -> amrtSpec(state)
+                Mode.BOND -> bondSpec(state)
+                Mode.BEVN -> bevnSpec(state, bevnSub)
                 else -> null
             }
             if (specPair == null) {
@@ -109,7 +126,11 @@ fun FinCalcApp(state: CalcState) {
                     }
                 }
             } else {
-                FinanceModeBody(state, specPair.first, specPair.second)
+                FinanceModeBody(
+                    state, specPair.first, specPair.second,
+                    bevnSub = if (state.mode == Mode.BEVN) bevnSub else null,
+                    onBevnSubChange = { bevnSub = it }
+                )
             }
         }
     }
@@ -118,15 +139,43 @@ fun FinCalcApp(state: CalcState) {
     if (showSettings) SettingsDialog(state, onDismiss = { showSettings = false })
 }
 
-/** 金融模式主体：变量列表屏 + 金融键盘。 */
+/** 金融模式主体：变量列表屏（BEVN 含子模式切换条）+ 金融键盘。 */
 @Composable
 private fun FinanceModeBody(
     state: CalcState,
     spec: ModeScreenSpec,
-    solver: (FinanceVar) -> Double
+    solver: (FinanceVar) -> Double,
+    bevnSub: BevnSub? = null,
+    onBevnSubChange: (BevnSub) -> Unit = {}
 ) {
-    val controller = remember(state.mode) { FinanceController(state, spec, solver) }
+    // Task 3 审查前瞻提醒：spec 结构随 bondTerm/prfRatio/bevenSales/bevnSub 变化，
+    // AMRT solver 语义随 payment 变化——全部纳入 remember 键，变更即重建 spec/controller。
+    val controller = remember(
+        state.mode,
+        state.settings.bondTerm,
+        state.settings.payment,
+        state.settings.prfRatio,
+        state.settings.bevenSales,
+        bevnSub
+    ) { FinanceController(state, spec, solver) }
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
+        if (bevnSub != null) {
+            // BEVN 子模式切换条（仅 BEVN 显示；点击更新 bevnSub，spec 随之重建）
+            Row(modifier = Modifier.fillMaxWidth()) {
+                BevnSub.values().forEach { sub ->
+                    Button(
+                        onClick = { onBevnSubChange(sub) },
+                        modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (sub == bevnSub) Color(0xFF4E6B52) else Color(0xFF2E3B30)
+                        )
+                    ) {
+                        Text(sub.name, fontSize = 12.sp, maxLines = 1)
+                    }
+                }
+            }
+        }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             FinanceScreen(controller)
         }
