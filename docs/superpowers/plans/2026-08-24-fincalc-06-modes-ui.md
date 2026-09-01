@@ -35,6 +35,7 @@
 
 **修订记录（执行期）：**
 
+- 2026-09-01（Task 5 双审查）：①规格审查发现 parseFlows 注释修订（MATH→Syntax ERROR）与 CashMode.kt 全限定名→import 的等价改写未提交——已补交。②质量审查发现**行数上限未执行**（CASH 80、STAT 80/40/26 是计划明文验收项，而计划参考实现与实现双方都没写——计划内部矛盾）；已补：CashController.addRow 上限 80、StatController.addRow 按类型/FREQ 取 80/40/26。③非阻塞备注：STAT 存量行在开 FREQ 后其 FREQ 格输入被吞（规避：删行重加）；CashStatTest 缺 NFV 断言与全部 STAT 用例（后续加固）；CASH/STAT 的 Keypad 只有 2 行模式键却占 weight(3f)（键被拉大，外观项）。
 - 2026-08-25（Task 4 质量审查发现，三处已修复）：①**设置层计划缺口**——SettingsDialog 原本只有角度/显示/语言，8 项金融设置（payment/dn/days360/dateFormat/bondTerm/periodsPerYear/prfRatio/bevenSales）无 UI 入口（Prefs 持久化已备而界面不可达）；已在 SettingsDialog 补金融设置区（`FinanceSettings` composable + `row2` 助手 + 双语词条），Column 加滚动。②**SHIFT 在金融键盘滞留**——FinanceController 无 clearShift，SHIFT 后按 EXE 会误触其 SOLVE shift 层覆写选中变量；已在 select/insert/delete/clear/exe/solve 各入口统一 `state.clearShift()`。③BOND 的 YLD Date 分支缺 1902~2097 范围检查（PRC 分支有）——已补齐对称。非阻塞备注：BOND Date 形态/AMRT/错误路径无 UI 层用例（引擎层已兜底）；B-Even=Sales 形态下反解走 QBE=0 的计划外组合已声明不做。
 - 2026-08-25（Task 3 质量审查发现，已修复）：①**▲▼ 未接线**——financeKeys 无导航键调用 moveUp/moveDown（变量导航曾纯触控，控制器方法成死代码）；已把死键 ◀▶ 换成 ▲▼ 并接线。②`-` 键在 R3/R4 重复出现——重排数字区消除重复（E 只出现一次）。③SHIFT 在金融键盘无 shiftLabel 可用（死键）——EXE 键加 `SOLVE` shift 层使其有意义。顺带：计划 Step 5 参考实现与计划正文的 ▲▼ 描述原本就自相矛盾（正文说 ▲▼、实现没接），已统一为接线版。**给 Task 4 实现者的前瞻提醒（审查提出）**：`FinanceModeBody` 用 `remember(state.mode)` 持控制器，而 BOND 的 spec 结构随 `settings.bondTerm` 变化——在 BOND 模式内改 Bond Date 设置不会重建 spec，Task 4 实现时记得让 spec/controller 的 remember 键包含 `state.settings.bondTerm`（以及 AMRT 的 `payment`、BEV 的 `prfRatio`/`bevenSales`）。（已在 Task 4 落实：remember 键含全部 spec 结构依赖 + bevnSub）
 - 2026-08-25（Task 3 实现子代理回报，两处已接纳）：①`expression input allowed` 测试期望值与 spec 冲突——Dys 标 `integer=true`，EXE 存入取整，20÷30+16 → 17 而非 16.67；实现方守约未动 spec/控制器，修正测试断言为 17.0 并加注释（计划文本已同步）。②计划的 `git add` 路径只覆盖 main 不含 test——已在计划全部 6 处统一补上 `app/src/test/java/com/fincalc/app/`。
@@ -1212,11 +1213,11 @@ class CashController(val state: CalcState) {
     var errorText by mutableStateOf<String?>(null)
         private set
 
-    fun addRow() { rows += "" }
+    fun addRow() { if (rows.size < Cash.MAX_ITEMS) rows += "" }   // ≤80 项（CN-63）
     fun deleteRow(i: Int) { if (i in rows.indices) rows.removeAt(i) }
     fun editRow(i: Int, text: String) { if (i in rows.indices) rows[i] = text }
 
-    /** 解析现金流列表（空行跳过；非法数值 → MATH）。 */
+    /** 解析现金流列表（空行跳过；非法数值 → Syntax ERROR）。 */
     private fun parseFlows(): List<Double> {
         val flows = rows.filter { it.isNotBlank() }.map {
             it.trim().toDoubleOrNull() ?: throw com.fincalc.app.core.expr.CalcException(
@@ -1281,7 +1282,16 @@ class StatController(val state: CalcState) {
         errorText = null
     }
 
-    fun addRow() { xs += ""; if (regType != null) ys += ""; if (state.settings.statFreq) freqs += "" }
+    fun addRow() {
+        // 行数上限（CN-132）：1-VAR 80 / 2-VAR 40 / 2-VAR+FREQ 26
+        val cap = if (regType == null) {
+            if (state.settings.statFreq) 40 else 80
+        } else {
+            if (state.settings.statFreq) 26 else 40
+        }
+        if (xs.size >= cap) return
+        xs += ""; if (regType != null) ys += ""; if (state.settings.statFreq) freqs += ""
+    }
     fun deleteRow(i: Int) {
         if (i in xs.indices) xs.removeAt(i)
         if (i in ys.indices) ys.removeAt(i)

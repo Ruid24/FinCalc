@@ -29,7 +29,16 @@ class StatController(val state: CalcState) {
         errorText = null
     }
 
-    fun addRow() { xs += ""; if (regType != null) ys += ""; if (state.settings.statFreq) freqs += "" }
+    fun addRow() {
+        // 行数上限（CN-132）：1-VAR 80 / 2-VAR 40 / 2-VAR+FREQ 26
+        val cap = if (regType == null) {
+            if (state.settings.statFreq) 40 else 80
+        } else {
+            if (state.settings.statFreq) 26 else 40
+        }
+        if (xs.size >= cap) return
+        xs += ""; if (regType != null) ys += ""; if (state.settings.statFreq) freqs += ""
+    }
     fun deleteRow(i: Int) {
         if (i in xs.indices) xs.removeAt(i)
         if (i in ys.indices) ys.removeAt(i)

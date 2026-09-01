@@ -17,11 +17,11 @@ class CashController(val state: CalcState) {
     var errorText by mutableStateOf<String?>(null)
         private set
 
-    fun addRow() { rows += "" }
+    fun addRow() { if (rows.size < Cash.MAX_ITEMS) rows += "" }   // ≤80 项（CN-63）
     fun deleteRow(i: Int) { if (i in rows.indices) rows.removeAt(i) }
     fun editRow(i: Int, text: String) { if (i in rows.indices) rows[i] = text }
 
-    /** 解析现金流列表（空行跳过；非法数值 → MATH）。 */
+    /** 解析现金流列表（空行跳过；非法数值 → Syntax ERROR）。 */
     private fun parseFlows(): List<Double> {
         val flows = rows.filter { it.isNotBlank() }.map {
             it.trim().toDoubleOrNull() ?: throw com.fincalc.app.core.expr.CalcException(
