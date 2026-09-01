@@ -18,4 +18,5 @@
     <string name="periods_per_year">Periods per year</string>
     <string name="prf_ratio">PRF / Ratio</string>
     <string name="beven">B-Even target</string>
+    <string name="stat_freq">STAT (FREQ column)</string>
 </resources>

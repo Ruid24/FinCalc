@@ -128,4 +128,5 @@ private fun FinanceSettings(state: CalcState) {
     row2(stringResource(R.string.periods_per_year), s.periodsPerYear, 1, 2, "Annual", "Semi") { s.copy(periodsPerYear = it) }
     row2(stringResource(R.string.prf_ratio), s.prfRatio, false, true, "PRF", "r%") { s.copy(prfRatio = it) }
     row2(stringResource(R.string.beven), s.bevenSales, false, true, "Quantity", "Sales") { s.copy(bevenSales = it) }
+    row2(stringResource(R.string.stat_freq), s.statFreq, false, true, "Off", "On") { s.copy(statFreq = it) }
 }

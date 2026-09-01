@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fincalc.app.core.finance.Depr
 import com.fincalc.app.core.finance.Stat
 import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.data.Prefs
@@ -56,6 +57,7 @@ import com.fincalc.app.ui.finance.modes.cmpdSpec
 import com.fincalc.app.ui.finance.modes.cnvrSpec
 import com.fincalc.app.ui.finance.modes.costSpec
 import com.fincalc.app.ui.finance.modes.daysSpec
+import com.fincalc.app.ui.finance.modes.deprSpec
 import com.fincalc.app.ui.finance.modes.smplSpec
 import com.fincalc.app.ui.keyboard.Key
 import com.fincalc.app.ui.keyboard.Keypad
@@ -107,6 +109,8 @@ fun FinCalcApp(state: CalcState) {
     var showSettings by remember { mutableStateOf(false) }
     // BEVN 子模式（BEV/MOS/DOL/DFL/DCL/QTY）；remember 键 = state.mode，切模式即重置为 BEV
     var bevnSub by remember(state.mode) { mutableStateOf(BevnSub.BEV) }
+    // DEPR 折旧方法（SL/FP/SYD/DB）；切模式即重置为 SL
+    var deprMethod by remember(state.mode) { mutableStateOf(com.fincalc.app.core.finance.Depr.Method.SL) }
 
     when (state.mode) {
         Mode.COMP -> CompScreen(
@@ -126,6 +130,7 @@ fun FinCalcApp(state: CalcState) {
                 Mode.AMRT -> amrtSpec(state)
                 Mode.BOND -> bondSpec(state)
                 Mode.BEVN -> bevnSpec(state, bevnSub)
+                Mode.DEPR -> deprSpec(state, deprMethod)
                 else -> null
             }
             if (specPair == null) {
@@ -140,7 +145,9 @@ fun FinCalcApp(state: CalcState) {
                 FinanceModeBody(
                     state, specPair.first, specPair.second,
                     bevnSub = if (state.mode == Mode.BEVN) bevnSub else null,
-                    onBevnSubChange = { bevnSub = it }
+                    onBevnSubChange = { bevnSub = it },
+                    deprMethod = if (state.mode == Mode.DEPR) deprMethod else null,
+                    onDeprMethodChange = { deprMethod = it }
                 )
             }
         }
@@ -150,24 +157,27 @@ fun FinCalcApp(state: CalcState) {
     if (showSettings) SettingsDialog(state, onDismiss = { showSettings = false })
 }
 
-/** 金融模式主体：变量列表屏（BEVN 含子模式切换条）+ 金融键盘。 */
+/** 金融模式主体：变量列表屏（BEVN/DEPR 含子模式切换条）+ 金融键盘。 */
 @Composable
 private fun FinanceModeBody(
     state: CalcState,
     spec: ModeScreenSpec,
     solver: (FinanceVar) -> Double,
     bevnSub: BevnSub? = null,
-    onBevnSubChange: (BevnSub) -> Unit = {}
+    onBevnSubChange: (BevnSub) -> Unit = {},
+    deprMethod: Depr.Method? = null,
+    onDeprMethodChange: (Depr.Method) -> Unit = {}
 ) {
     // Task 3 审查前瞻提醒：spec 结构随 bondTerm/prfRatio/bevenSales/bevnSub 变化，
-    // AMRT solver 语义随 payment 变化——全部纳入 remember 键，变更即重建 spec/controller。
+    // AMRT solver 语义随 payment 变化——全部纳入 remember 键，变更即重建 spec/controller（deprMethod 同理）。
     val controller = remember(
         state.mode,
         state.settings.bondTerm,
         state.settings.payment,
         state.settings.prfRatio,
         state.settings.bevenSales,
-        bevnSub
+        bevnSub,
+        deprMethod
     ) { FinanceController(state, spec, solver) }
     // 长按变量弹出的公式目标（null = 不显示）
     var formulaVar by remember { mutableStateOf<FinanceVar?>(null) }
@@ -185,6 +195,23 @@ private fun FinanceModeBody(
                         )
                     ) {
                         Text(sub.name, fontSize = 12.sp, maxLines = 1)
+                    }
+                }
+            }
+        }
+        if (deprMethod != null) {
+            // DEPR 方法切换条（仅 DEPR 显示；终审补入——DEPR 界面曾整体缺失）
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Depr.Method.values().forEach { m ->
+                    Button(
+                        onClick = { onDeprMethodChange(m) },
+                        modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (m == deprMethod) Color(0xFF4E6B52) else Color(0xFF2E3B30)
+                        )
+                    ) {
+                        Text(m.name, fontSize = 12.sp, maxLines = 1)
                     }
                 }
             }

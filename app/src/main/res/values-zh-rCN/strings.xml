@@ -18,4 +18,5 @@
     <string name="periods_per_year">年复利/付款周期数</string>
     <string name="prf_ratio">利润目标</string>
     <string name="beven">损益平衡对象</string>
+    <string name="stat_freq">统计显示频率栏（FREQ）</string>
 </resources>
