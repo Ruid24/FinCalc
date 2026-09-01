@@ -10,6 +10,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +29,8 @@ import com.fincalc.app.ui.keyboard.modeKeyRows
 @Composable
 fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettings: () -> Unit) {
     val state = controller.state
+    var stoPicker by remember { mutableStateOf(false) }
+    var rclPicker by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
         // 显示屏（深色液晶屏底色）
         Column(
@@ -80,12 +86,28 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
             }
         }
         // 键盘区
-        Keypad(rows = compKeys(controller, onOpenModes, onOpenSettings), shift = state.shift, modifier = Modifier.weight(3f))
+        Keypad(
+            rows = compKeys(controller, onOpenModes, onOpenSettings, onSto = { stoPicker = true }, onRcl = { rclPicker = true }),
+            shift = state.shift,
+            modifier = Modifier.weight(3f)
+        )
+    }
+    if (stoPicker) {
+        VarPickerDialog("STO", state, onPick = { Memory.store(state, it) }, onDismiss = { stoPicker = false })
+    }
+    if (rclPicker) {
+        VarPickerDialog("RCL", state, onPick = { controller.insert(it) }, onDismiss = { rclPicker = false })
     }
 }
 
 /** COMP 键面（SHIFT 层为第二功能）。 */
-private fun compKeys(c: CompController, onOpenModes: () -> Unit, onOpenSettings: () -> Unit): List<List<Key>> {
+private fun compKeys(
+    c: CompController,
+    onOpenModes: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onSto: () -> Unit,
+    onRcl: () -> Unit
+): List<List<Key>> {
     val s = c.state
     fun ins(text: String): Key = Key(text, onPress = { c.insert(text) })
     fun insShift(label: String, shiftLabel: String, text: String, shiftText: String): Key =
@@ -130,6 +152,12 @@ private fun compKeys(c: CompController, onOpenModes: () -> Unit, onOpenSettings:
             Key("=", onPress = { c.execute() }),
             Key("▲", onPress = { c.historyBack() }),
             Key("▼", onPress = { c.historyForward() })
+        ),
+        listOf(
+            Key("STO", onPress = { onSto() }),
+            Key("RCL", onPress = { onRcl() }),
+            Key("M+", "M-", onPress = { Memory.memPlus(s) }, onShiftPress = { Memory.memMinus(s) }),
+            ins("M"), ins("Ans"), ins("⁻¹")
         ),
         listOf(
             ins("A"), ins("B"), ins("C"), ins("D"), ins("X"), ins("Y")

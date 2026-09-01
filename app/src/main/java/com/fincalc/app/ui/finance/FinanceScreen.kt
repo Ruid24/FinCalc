@@ -1,7 +1,8 @@
 package com.fincalc.app.ui.finance
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +18,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** 金融模式通用屏：多行可滚动变量列表，当前行高亮（设计文档 §6）。 */
+/** 金融模式通用屏：多行可滚动变量列表，当前行高亮（设计文档 §6）。长按变量行弹公式（学习辅助）。 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FinanceScreen(
     controller: FinanceController,
@@ -36,7 +38,10 @@ fun FinanceScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(if (isCurrent) Color(0xFF39493B) else Color.Transparent)
-                    .clickable { controller.select(index) }
+                    .combinedClickable(
+                        onClick = { controller.select(index) },
+                        onLongClick = { onLongPressVar(v) }
+                    )
                     .padding(vertical = 4.dp)
             ) {
                 Text(

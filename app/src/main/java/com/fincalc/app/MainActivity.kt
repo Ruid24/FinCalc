@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -168,6 +169,8 @@ private fun FinanceModeBody(
         state.settings.bevenSales,
         bevnSub
     ) { FinanceController(state, spec, solver) }
+    // 长按变量弹出的公式目标（null = 不显示）
+    var formulaVar by remember { mutableStateOf<FinanceVar?>(null) }
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
         if (bevnSub != null) {
             // BEVN 子模式切换条（仅 BEVN 显示；点击更新 bevnSub，spec 随之重建）
@@ -187,9 +190,18 @@ private fun FinanceModeBody(
             }
         }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            FinanceScreen(controller)
+            FinanceScreen(controller, onLongPressVar = { formulaVar = it })
         }
         Keypad(rows = financeKeys(controller, state), shift = state.shift, modifier = Modifier.weight(3f))
+    }
+    // 长按变量行的公式弹窗（学习辅助）
+    formulaVar?.let { v ->
+        AlertDialog(
+            onDismissRequest = { formulaVar = null },
+            title = { Text(v.label) },
+            text = { Text(v.formula) },
+            confirmButton = { TextButton(onClick = { formulaVar = null }) { Text("OK") } }
+        )
     }
 }
 
