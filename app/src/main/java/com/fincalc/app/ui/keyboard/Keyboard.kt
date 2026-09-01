@@ -53,7 +53,13 @@ fun Keypad(
                                     view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                                     if (active) (key.onShiftPress ?: key.onPress)() else key.onPress()
                                 },
-                                onLongClick = key.onLongPress
+                                onLongClick = key.onLongPress?.let { lp ->
+                                    {
+                                        // 审查发现：foundation 1.7.0 长按框架不自动振动，补 LongPress 触觉反馈
+                                        view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                                        lp()
+                                    }
+                                }
                             ),
                         color = if (active) Color(0xFF39493B) else Color(0xFF232B25),
                         shape = RoundedCornerShape(percent = 50)

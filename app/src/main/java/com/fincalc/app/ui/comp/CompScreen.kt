@@ -116,11 +116,11 @@ private fun compKeys(
     return modeKeyRows(s) + listOf(
         listOf(
             Key("SHIFT", onPress = { s.toggleShift() }),
-            Key("MODE", "SET", onPress = onOpenModes, onShiftPress = onOpenSettings),
+            Key("MODE", "SET", onPress = { s.clearShift(); onOpenModes() }, onShiftPress = { s.clearShift(); onOpenSettings() }),
             Key("◀", onPress = { c.moveLeft() }),
             Key("▶", onPress = { c.moveRight() }),
-            Key("DEL", onPress = { c.delete() }),
-            Key("AC", onPress = { c.clear() })
+            Key("DEL", onPress = { s.clearShift(); c.delete() }),
+            Key("AC", onPress = { s.clearShift(); c.clear() })
         ),
         listOf(
             insShift("x²", "x³", "²", "³"),
@@ -154,9 +154,9 @@ private fun compKeys(
             Key("▼", onPress = { c.historyForward() })
         ),
         listOf(
-            Key("STO", onPress = { onSto() }),
-            Key("RCL", onPress = { onRcl() }),
-            Key("M+", "M-", onPress = { Memory.memPlus(s) }, onShiftPress = { Memory.memMinus(s) }),
+            Key("STO", onPress = { s.clearShift(); onSto() }),
+            Key("RCL", onPress = { s.clearShift(); onRcl() }),
+            Key("M+", "M-", onPress = { s.clearShift(); Memory.memPlus(s) }, onShiftPress = { s.clearShift(); Memory.memMinus(s) }),
             ins("M"), ins("Ans"), ins("⁻¹")
         ),
         listOf(
