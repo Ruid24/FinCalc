@@ -13,7 +13,11 @@
 
 ## 当前进度状态
 
-计划 1 共 10 个任务。**截至 2026-08-19（台式机续接会话）：Task 1-9 完成并全部通过审查，Task 10（GitHub 推送）经用户决定推迟，待用户发起。** Task 1-4 原始记录（笔记本时期）：
+**截至 2026-09-01：计划 1-6 全部完成，项目功能全量可用。** 12 模式引擎（计划 2-4：core/expr 表达式引擎 + core/solver 求解器 + core/finance 金融引擎 6+5 object）+ UI（计划 5-6：自研排版器、COMP 端到端、金融框架 + 11 模式界面、CASH/STAT 编辑器、光标系统、存储器、学习辅助、DataStore 持久化、双语）。全量 222 测 0 败。
+
+关键过程资产：设计文档 `docs/superpowers/specs/`、计划 1-6 `docs/superpowers/plans/`（各含执行期修订记录）、说明书 OCR `说明书/`。重大技术决策变更：AndroidMath 库不可用（GitHub 下架），经用户确认改为自研 Compose 排版器（core/render + ui/math）。
+
+GitHub 推送：用户推迟，随时可发起（git remote add origin https://github.com/Ruid24/FinCalc.git → push -u origin main）。
 
 - [x] Task 1: `.gitignore`（含 `.dev/` 排除）+ git 本地身份（Ruid / ruid@localhost），已提交（e286859 之后还有文档提交）
 - [x] Task 2: `.dev/jdk` = Temurin JDK 17.0.20+8，`.dev/env.sh` 已创建
