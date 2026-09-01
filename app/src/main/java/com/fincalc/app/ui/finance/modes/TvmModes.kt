@@ -119,6 +119,9 @@ fun bondSpec(state: CalcState): Pair<ModeScreenSpec, (FinanceVar) -> Double> {
             } else {
                 val d1 = Days.parse(state.getVar("d1"), s.dateFormat)
                 val d2 = Days.parse(state.getVar("d2"), s.dateFormat)
+                if (d1.year !in 1902..2097 || d2.year !in 1902..2097) {
+                    throw CalcException(CalcException.Kind.ARGUMENT, "BOND 日期范围 1902~2097")
+                }
                 Bond.yldDate(d1, d2, state.getVar("RDV"), state.getVar("CPN"), state.getVar("PRC"), m, d360)
             }
             else -> error("不可求解")

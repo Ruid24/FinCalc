@@ -34,6 +34,7 @@ class FinanceController(
         private set
 
     fun select(index: Int) {
+        state.clearShift()
         selected = index.coerceIn(0, spec.vars.size - 1)
         editText = null
         errorText = null
@@ -45,16 +46,19 @@ class FinanceController(
 
     /** 输入字符（开始/继续编辑当前行）。 */
     fun insert(text: String) {
+        state.clearShift()
         errorText = null
         resultText = null
         editText = (editText ?: "") + text
     }
 
     fun delete() {
+        state.clearShift()
         editText = editText?.let { if (it.isNotEmpty()) it.dropLast(1) else null }
     }
 
     fun clear() {
+        state.clearShift()
         editText = null
         errorText = null
         resultText = null
@@ -67,6 +71,7 @@ class FinanceController(
 
     /** EXE：求值当前编辑串并存入选中变量（允许表达式输入，CN-56）。 */
     fun exe() {
+        state.clearShift()
         val text = editText ?: return
         try {
             val value = ExprEngine.eval(text, state.exprContext())
@@ -81,6 +86,7 @@ class FinanceController(
 
     /** SOLVE：求解选中变量并写回 VARS。 */
     fun solve() {
+        state.clearShift()
         val target = spec.vars[selected]
         if (!target.solvable) {
             errorText = "Math ERROR"

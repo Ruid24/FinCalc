@@ -12,4 +12,10 @@
     <string name="date_input">Date Input format</string>
     <string name="history_empty">No history</string>
     <string name="back">Back</string>
+    <string name="payment_setting">Payment</string>
+    <string name="dn_setting">Odd-period interest</string>
+    <string name="bond_term">Bond Date</string>
+    <string name="periods_per_year">Periods per year</string>
+    <string name="prf_ratio">PRF / Ratio</string>
+    <string name="beven">B-Even target</string>
 </resources>

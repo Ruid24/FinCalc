@@ -12,4 +12,10 @@
     <string name="date_input">日期输入格式</string>
     <string name="history_empty">暂无历史</string>
     <string name="back">返回</string>
+    <string name="payment_setting">付款方式</string>
+    <string name="dn_setting">奇数期利息</string>
+    <string name="bond_term">债券计算期</string>
+    <string name="periods_per_year">年复利/付款周期数</string>
+    <string name="prf_ratio">利润目标</string>
+    <string name="beven">损益平衡对象</string>
 </resources>

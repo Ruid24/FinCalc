@@ -35,7 +35,8 @@
 
 **修订记录（执行期）：**
 
-- 2026-08-25（Task 3 质量审查发现，已修复）：①**▲▼ 未接线**——financeKeys 无导航键调用 moveUp/moveDown（变量导航曾纯触控，控制器方法成死代码）；已把死键 ◀▶ 换成 ▲▼ 并接线。②`-` 键在 R3/R4 重复出现——重排数字区消除重复（E 只出现一次）。③SHIFT 在金融键盘无 shiftLabel 可用（死键）——EXE 键加 `SOLVE` shift 层使其有意义。顺带：计划 Step 5 参考实现与计划正文的 ▲▼ 描述原本就自相矛盾（正文说 ▲▼、实现没接），已统一为接线版。**给 Task 4 实现者的前瞻提醒（审查提出）**：`FinanceModeBody` 用 `remember(state.mode)` 持控制器，而 BOND 的 spec 结构随 `settings.bondTerm` 变化——在 BOND 模式内改 Bond Date 设置不会重建 spec，Task 4 实现时记得让 spec/controller 的 remember 键包含 `state.settings.bondTerm`（以及 AMRT 的 `payment`、BEV 的 `prfRatio`/`bevenSales`）。
+- 2026-08-25（Task 4 质量审查发现，三处已修复）：①**设置层计划缺口**——SettingsDialog 原本只有角度/显示/语言，8 项金融设置（payment/dn/days360/dateFormat/bondTerm/periodsPerYear/prfRatio/bevenSales）无 UI 入口（Prefs 持久化已备而界面不可达）；已在 SettingsDialog 补金融设置区（`FinanceSettings` composable + `row2` 助手 + 双语词条），Column 加滚动。②**SHIFT 在金融键盘滞留**——FinanceController 无 clearShift，SHIFT 后按 EXE 会误触其 SOLVE shift 层覆写选中变量；已在 select/insert/delete/clear/exe/solve 各入口统一 `state.clearShift()`。③BOND 的 YLD Date 分支缺 1902~2097 范围检查（PRC 分支有）——已补齐对称。非阻塞备注：BOND Date 形态/AMRT/错误路径无 UI 层用例（引擎层已兜底）；B-Even=Sales 形态下反解走 QBE=0 的计划外组合已声明不做。
+- 2026-08-25（Task 3 质量审查发现，已修复）：①**▲▼ 未接线**——financeKeys 无导航键调用 moveUp/moveDown（变量导航曾纯触控，控制器方法成死代码）；已把死键 ◀▶ 换成 ▲▼ 并接线。②`-` 键在 R3/R4 重复出现——重排数字区消除重复（E 只出现一次）。③SHIFT 在金融键盘无 shiftLabel 可用（死键）——EXE 键加 `SOLVE` shift 层使其有意义。顺带：计划 Step 5 参考实现与计划正文的 ▲▼ 描述原本就自相矛盾（正文说 ▲▼、实现没接），已统一为接线版。**给 Task 4 实现者的前瞻提醒（审查提出）**：`FinanceModeBody` 用 `remember(state.mode)` 持控制器，而 BOND 的 spec 结构随 `settings.bondTerm` 变化——在 BOND 模式内改 Bond Date 设置不会重建 spec，Task 4 实现时记得让 spec/controller 的 remember 键包含 `state.settings.bondTerm`（以及 AMRT 的 `payment`、BEV 的 `prfRatio`/`bevenSales`）。（已在 Task 4 落实：remember 键含全部 spec 结构依赖 + bevnSub）
 - 2026-08-25（Task 3 实现子代理回报，两处已接纳）：①`expression input allowed` 测试期望值与 spec 冲突——Dys 标 `integer=true`，EXE 存入取整，20÷30+16 → 17 而非 16.67；实现方守约未动 spec/控制器，修正测试断言为 17.0 并加注释（计划文本已同步）。②计划的 `git add` 路径只覆盖 main 不含 test——已在计划全部 6 处统一补上 `app/src/test/java/com/fincalc/app/`。
 
 - 2026-08-25（Task 2 双审查）：①规格审查——实现方省略了计划 import 块中两个未使用 import（无害清理），计划已同步为磁盘版本。②质量审查发现闪烁光标的 alpha 读取挂在组合作用域上，导致**每帧重组 + 每帧两次 解析+测量**（持续空转耗电）；已修复：测量结果 `remember(input, cursor, baseTextSize)` 缓存 + 光标条常驻用 `Modifier.alpha` 控制显隐。③触控落点 `toInt` 向零取整左偏半字符——已改 `roundToInt`。④MathView 降级文本与光标测量的字体不一致（Roboto vs Serif）——降级 Text 补 `FontFamily.Serif`（计划 5 文本同步）。备注（不修）：前缀排版在分数/自动加括号内部的光标 x 有系统性近似偏差（设计决策已声明）；输入行无 auto-scroll-to-cursor（后续 UX 优化）。
@@ -334,6 +335,7 @@ class FinanceController(
         private set
 
     fun select(index: Int) {
+        state.clearShift()
         selected = index.coerceIn(0, spec.vars.size - 1)
         editText = null
         errorText = null
@@ -345,16 +347,19 @@ class FinanceController(
 
     /** 输入字符（开始/继续编辑当前行）。 */
     fun insert(text: String) {
+        state.clearShift()
         errorText = null
         resultText = null
         editText = (editText ?: "") + text
     }
 
     fun delete() {
+        state.clearShift()
         editText = editText?.let { if (it.isNotEmpty()) it.dropLast(1) else null }
     }
 
     fun clear() {
+        state.clearShift()
         editText = null
         errorText = null
         resultText = null
@@ -367,6 +372,7 @@ class FinanceController(
 
     /** EXE：求值当前编辑串并存入选中变量（允许表达式输入，CN-56）。 */
     fun exe() {
+        state.clearShift()
         val text = editText ?: return
         try {
             val value = ExprEngine.eval(text, state.exprContext())
@@ -381,6 +387,7 @@ class FinanceController(
 
     /** SOLVE：求解选中变量并写回 VARS。 */
     fun solve() {
+        state.clearShift()
         val target = spec.vars[selected]
         if (!target.solvable) {
             errorText = "Math ERROR"
@@ -855,6 +862,9 @@ fun bondSpec(state: CalcState): Pair<ModeScreenSpec, (FinanceVar) -> Double> {
             } else {
                 val d1 = Days.parse(state.getVar("d1"), s.dateFormat)
                 val d2 = Days.parse(state.getVar("d2"), s.dateFormat)
+                if (d1.year !in 1902..2097 || d2.year !in 1902..2097) {
+                    throw CalcException(CalcException.Kind.ARGUMENT, "BOND 日期范围 1902~2097")
+                }
                 Bond.yldDate(d1, d2, state.getVar("RDV"), state.getVar("CPN"), state.getVar("PRC"), m, d360)
             }
             else -> error("不可求解")
