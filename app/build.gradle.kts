@@ -1,7 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// 发布签名凭据：从 local.properties 读（不进 git）；缺失时 release 退化为未签名构建
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -16,9 +24,22 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFileProp = localProps.getProperty("release.storeFile")
+            if (storeFileProp != null) {
+                storeFile = rootProject.file(storeFileProp)
+                keyAlias = localProps.getProperty("release.keyAlias")
+                storePassword = localProps.getProperty("release.storePassword")
+                keyPassword = localProps.getProperty("release.keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
