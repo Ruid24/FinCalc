@@ -4,7 +4,7 @@
 
 ## 中文
 
-对标卡西欧 FC-200V 的开源安卓金融计算器（Kotlin + Jetpack Compose）。支持全部 12 种计算模式，输入公式实时矢量排版自然显示（自研排版器，无 WebView、零外部渲染依赖）。
+开源安卓金融计算器（Kotlin + Jetpack Compose）。支持全部 12 种计算模式，输入公式实时矢量排版自然显示（自研排版器，无 WebView、零外部渲染依赖）。
 
 ### 功能
 
@@ -49,7 +49,7 @@ MIT（详见 LICENSE）。
 
 ## English
 
-An open-source Android financial calculator modeled after the Casio FC-200V (Kotlin + Jetpack Compose). All 12 calculation modes, with real-time vector-typeset natural display of expressions (self-built typesetter — no WebView, zero external rendering dependencies).
+An open-source Android financial calculator (Kotlin + Jetpack Compose). All 12 calculation modes, with real-time vector-typeset natural display of expressions (self-built typesetter — no WebView, zero external rendering dependencies).
 
 ### Features
 
