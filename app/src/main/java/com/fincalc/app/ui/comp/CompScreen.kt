@@ -89,6 +89,7 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
         Keypad(
             rows = compKeys(controller, onOpenModes, onOpenSettings, onSto = { stoPicker = true }, onRcl = { rclPicker = true }),
             shift = state.shift,
+            alpha = state.alpha,
             modifier = Modifier.weight(3f)
         )
     }
@@ -116,11 +117,11 @@ private fun compKeys(
     return modeKeyRows(s) + listOf(
         listOf(
             Key("SHIFT", onPress = { s.toggleShift() }),
-            Key("MODE", "SET", onPress = { s.clearShift(); onOpenModes() }, onShiftPress = { s.clearShift(); onOpenSettings() }),
-            Key("◀", onPress = { c.moveLeft() }),
-            Key("▶", onPress = { c.moveRight() }),
-            Key("DEL", onPress = { s.clearShift(); c.delete() }),
-            Key("AC", onPress = { s.clearShift(); c.clear() })
+            Key("MODE", "SET", onPress = { s.clearModifiers(); onOpenModes() }, onShiftPress = { s.clearModifiers(); onOpenSettings() }),
+            Key("◀", onPress = { s.clearModifiers(); c.moveLeft() }),
+            Key("▶", onPress = { s.clearModifiers(); c.moveRight() }),
+            Key("DEL", onPress = { s.clearModifiers(); c.delete() }),
+            Key("AC", onPress = { s.clearModifiers(); c.clear() })
         ),
         listOf(
             insShift("x²", "x³", "²", "³"),
@@ -149,14 +150,14 @@ private fun compKeys(
         ),
         listOf(
             ins("0"), ins("."), ins("E"),
-            Key("=", onPress = { c.execute() }),
-            Key("▲", onPress = { c.historyBack() }),
-            Key("▼", onPress = { c.historyForward() })
+            Key("=", onPress = { s.clearModifiers(); c.execute() }),
+            Key("▲", onPress = { s.clearModifiers(); c.historyBack() }),
+            Key("▼", onPress = { s.clearModifiers(); c.historyForward() })
         ),
         listOf(
-            Key("STO", onPress = { s.clearShift(); onSto() }),
-            Key("RCL", onPress = { s.clearShift(); onRcl() }),
-            Key("M+", "M-", onPress = { s.clearShift(); Memory.memPlus(s) }, onShiftPress = { s.clearShift(); Memory.memMinus(s) }),
+            Key("STO", onPress = { s.clearModifiers(); onSto() }),
+            Key("RCL", onPress = { s.clearModifiers(); onRcl() }),
+            Key("M+", "M-", onPress = { s.clearModifiers(); Memory.memPlus(s) }, onShiftPress = { s.clearModifiers(); Memory.memMinus(s) }),
             ins("M"), ins("Ans"), ins("⁻¹")
         ),
         listOf(

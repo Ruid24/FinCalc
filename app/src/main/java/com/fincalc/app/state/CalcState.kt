@@ -47,6 +47,9 @@ class CalcState(
     var shift: Boolean by mutableStateOf(false)
         private set
 
+    var alpha: Boolean by mutableStateOf(false)
+        private set
+
     private val vars = mutableMapOf<String, Double>()
     val history = mutableListOf<HistoryEntry>()
     var historyCursor = -1
@@ -55,15 +58,27 @@ class CalcState(
     fun switchMode(m: Mode) {
         mode = m
         shift = false
+        alpha = false
     }
 
     fun toggleShift() {
         shift = !shift
+        alpha = false   // SHIFT 与 ALPHA 互斥
     }
 
-    /** 真机行为：SHIFT 只作用于下一次按键，插入后自动解除。 */
-    fun clearShift() {
+    fun toggleAlpha() {
+        alpha = !alpha
+        shift = false   // SHIFT 与 ALPHA 互斥
+    }
+
+    /** 真机行为：SHIFT/ALPHA 只作用于下一次按键，触发后自动解除。 */
+    fun clearModifiers() {
         shift = false
+        alpha = false
+    }
+
+    fun clearAlpha() {
+        alpha = false
     }
 
     fun getVar(name: String): Double = vars[name] ?: 0.0

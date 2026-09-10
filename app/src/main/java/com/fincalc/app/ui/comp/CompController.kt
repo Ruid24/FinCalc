@@ -38,7 +38,7 @@ class CompController(val state: CalcState) {
         errorText = null
         input = input.substring(0, cursor) + text + input.substring(cursor)
         cursor += text.length
-        state.clearShift()   // SHIFT 只作用于下一次按键（真机行为）
+        state.clearModifiers()   // SHIFT/ALPHA 只作用于下一次按键（真机行为）
     }
 
     fun delete() {

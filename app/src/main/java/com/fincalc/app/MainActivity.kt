@@ -219,7 +219,7 @@ private fun FinanceModeBody(
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             FinanceScreen(controller, onLongPressVar = { formulaVar = it })
         }
-        Keypad(rows = financeKeys(controller, state), shift = state.shift, modifier = Modifier.weight(3f))
+        Keypad(rows = financeKeys(controller, state), shift = state.shift, alpha = state.alpha, modifier = Modifier.weight(3f))
     }
     // 长按变量行的公式弹窗（学习辅助）
     formulaVar?.let { v ->
@@ -306,7 +306,7 @@ private fun CashModeBody(state: CalcState) {
                 }
             }
         }
-        Keypad(rows = modeKeyRows(state), shift = state.shift, modifier = Modifier.weight(3f))
+        Keypad(rows = modeKeyRows(state), shift = state.shift, alpha = state.alpha, modifier = Modifier.weight(3f))
     }
 }
 
@@ -383,6 +383,6 @@ private fun StatModeBody(state: CalcState) {
                 Text(it, color = Color(0xFFE8F5E9), fontSize = 14.sp, maxLines = 1)
             }
         }
-        Keypad(rows = modeKeyRows(state), shift = state.shift, modifier = Modifier.weight(3f))
+        Keypad(rows = modeKeyRows(state), shift = state.shift, alpha = state.alpha, modifier = Modifier.weight(3f))
     }
 }
