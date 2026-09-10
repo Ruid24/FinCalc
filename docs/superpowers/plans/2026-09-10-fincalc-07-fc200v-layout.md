@@ -36,7 +36,7 @@
 | S-MENU（shift+SOLVE） | 打开设置对话框 | 同左 |
 | SETUP | 打开设置对话框 | 同左 |
 | OFF（shift+AC） | activity.finish() | 同左 |
-| DRG►（shift+Ans） | 角度 DEG→RAD→GRAD？循环切换（实际 AngleUnit 只有 DEG/RAD，两态切换） | 同左 |
+| DRG►（shift+Ans） | 角度单位 DEG→RAD→GRA 循环切换（AngleUnit 实际有三值，真机 DRG► 即三态循环；初稿误写两态，以代码为准） | 同左 |
 | CTLG | 目录弹窗：上栏变量（A~D,X,Y,M,Ans）点击插入、下栏函数目录（x³ ∛( ˣ√( log( 10^( Abs( sin⁻¹( cos⁻¹( tan⁻¹( nPr nCr ! : Ran# Pol( 等现有 compKeys 里有但新键面放不下的功能）点击插入 | 同左（插入到 editText） |
 | VARS（shift+CTLG） | 仅变量弹窗（等同现 VarPickerDialog） | 同左 |
 | RCL | VarPickerDialog 选中插入（现有） | 同左 |
@@ -99,3 +99,12 @@
   2. DPad 四向键 `fillMaxHeight(0.38f)` 相邻点击区重叠约 7% → 降 0.33f（DPad.kt）；
   3. `CalcState.clearShift()` 全局替换后成死代码且只清 shift 属"诱捕器" → 删除（CalcState.kt）。
   质量审查另记录两条留待 Task 2/3 处理：状态行补 ALPHA 指示符；颜色常量待 Task 3 换屏色板时一并收口。
+- **Task 2 双审查后修复**（规格审查：1 项中等；质量审查：无阻断、4 项应修）：
+  1. `⁻¹`（倒数）功能入口丢失（旧 compKeys 有、新键面未收纳）→ 补入 CatalogDialog 函数目录（两个审查同时发现）；
+  2. `fc200vKeys` 的 `onOpenSettings` 死参数删除（SETUP/S-MENU 均在 fc200vTopRows）+ 两个调用点同步；
+  3. 金融模式 DPad ◄► 空操作分支补 `clearModifiers()`（武装态挂起隐患）；
+  4. `ModeDialog.kt` 整文件死代码删除 + 双语 `mode_select` 字符串清理；
+  5. SHORT CUT `onLongPress` 补 `clearModifiers()`（绑定后修饰态挂起）；
+  6. "旧 compKeys" 注释三处改为"改造前 compKeys（已删除）"。
+  确认项：DRG► 实为 DEG/RAD/GRA 三态循环（计划初稿误写两态，已回改上文行为映射表）；INS/Δ% 仅印刷不绑定，shift 按下回落主功能（KeyCap 既定回退语义）。
+  记录未修（后续任务候选）：CASH/STAT 屏无 SETUP/ESC/ON 入口不一致；弹窗四元组在 CompScreen/MainActivity 重复（可抽 CalcDialogsHost）；键表每次重组重建（既有设计）。

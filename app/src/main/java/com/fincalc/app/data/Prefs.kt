@@ -12,6 +12,7 @@ import com.fincalc.app.core.finance.Cmpd
 import com.fincalc.app.core.finance.Days
 import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.HistoryEntry
+import com.fincalc.app.state.Mode
 import com.fincalc.app.state.Settings
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -34,6 +35,8 @@ object Prefs {
     private val KEY_STAT_FREQ = booleanPreferencesKey("statFreq")
     private val KEY_CHINESE = booleanPreferencesKey("chinese")
     private val KEY_HISTORY = stringPreferencesKey("history")
+    private val KEY_SHORTCUT1 = stringPreferencesKey("shortcut1")
+    private val KEY_SHORTCUT2 = stringPreferencesKey("shortcut2")
 
     suspend fun load(context: Context, state: CalcState) {
         val p = context.dataStore.data.first()
@@ -62,6 +65,9 @@ object Prefs {
                 if (i <= 0) null else HistoryEntry(line.substring(0, i), line.substring(i + 1).toDoubleOrNull() ?: return@mapNotNull null)
             }
         }
+        // SHORT CUT 绑定（Mode.name 存储；非法值忽略）
+        p[KEY_SHORTCUT1]?.let { runCatching { Mode.valueOf(it) }.getOrNull() }?.let { state.bindShortcut(1, it) }
+        p[KEY_SHORTCUT2]?.let { runCatching { Mode.valueOf(it) }.getOrNull() }?.let { state.bindShortcut(2, it) }
     }
 
     /** 启动最早点（attachBaseContext）的同步语言读取；DataStore 一次性读取量小。 */
@@ -84,6 +90,10 @@ object Prefs {
             p[KEY_STAT_FREQ] = state.settings.statFreq
             p[KEY_CHINESE] = state.settings.chinese
             p[KEY_HISTORY] = state.history.joinToString("\n") { "${it.input}\t${it.result}" }
+            val sc1 = state.shortcut1
+            if (sc1 != null) p[KEY_SHORTCUT1] = sc1.name else p.remove(KEY_SHORTCUT1)
+            val sc2 = state.shortcut2
+            if (sc2 != null) p[KEY_SHORTCUT2] = sc2.name else p.remove(KEY_SHORTCUT2)
         }
     }
 

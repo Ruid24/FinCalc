@@ -50,6 +50,20 @@ class CalcState(
     var alpha: Boolean by mutableStateOf(false)
         private set
 
+    /** SHORT CUT1/2 键绑定的模式（null = 未绑定）：长按绑定当前模式、短按跳转、shift 清除。Prefs 持久化。 */
+    var shortcut1: Mode? by mutableStateOf(null)
+        private set
+    var shortcut2: Mode? by mutableStateOf(null)
+        private set
+
+    fun bindShortcut(slot: Int, m: Mode) {
+        if (slot == 1) shortcut1 = m else shortcut2 = m
+    }
+
+    fun clearShortcut(slot: Int) {
+        if (slot == 1) shortcut1 = null else shortcut2 = null
+    }
+
     private val vars = mutableMapOf<String, Double>()
     val history = mutableListOf<HistoryEntry>()
     var historyCursor = -1

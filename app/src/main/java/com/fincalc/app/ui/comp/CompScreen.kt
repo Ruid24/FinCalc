@@ -1,6 +1,8 @@
 package com.fincalc.app.ui.comp
 
+import android.app.Activity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,20 +19,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fincalc.app.core.format.NumberFormatter
-import com.fincalc.app.ui.keyboard.Key
+import com.fincalc.app.ui.dialogs.CatalogDialog
 import com.fincalc.app.ui.keyboard.Keypad
-import com.fincalc.app.ui.keyboard.modeKeyRows
+import com.fincalc.app.ui.keyboard.TopFunctionRows
+import com.fincalc.app.ui.keyboard.fc200vKeys
+import com.fincalc.app.ui.keyboard.fc200vTopRows
 
-/** COMP 模式界面。上屏（输入实时排版 + 结果）下键（仿真键盘）。 */
+/** COMP 模式界面。上屏（输入实时排版 + 结果）下键（FC-200V 仿真键盘）。 */
 @Composable
-fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettings: () -> Unit) {
+fun CompScreen(controller: CompController, onOpenSettings: () -> Unit) {
     val state = controller.state
+    val activity = LocalContext.current as? Activity
     var stoPicker by remember { mutableStateOf(false) }
     var rclPicker by remember { mutableStateOf(false) }
+    var varsPicker by remember { mutableStateOf(false) }
+    var catalog by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
         // 显示屏（深色液晶屏底色）
         Column(
@@ -40,7 +48,7 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
                 .background(Color(0xFF1B2A1E))
                 .padding(12.dp)
         ) {
-            // 状态行（模式/角度/SHIFT 指示符）
+            // 状态行（模式/角度/SHIFT/ALPHA 指示符）
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = buildString {
@@ -48,6 +56,7 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
                         append("  ")
                         append(state.settings.angle.name)
                         if (state.shift) append("  SHIFT")
+                        if (state.alpha) append("  ALPHA")
                     },
                     color = Color(0xFF9DBA9F),
                     fontSize = 12.sp
@@ -85,13 +94,39 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
                 }
             }
         }
-        // 键盘区
-        Keypad(
-            rows = compKeys(controller, onOpenModes, onOpenSettings, onSto = { stoPicker = true }, onRcl = { rclPicker = true }),
-            shift = state.shift,
-            alpha = state.alpha,
-            modifier = Modifier.weight(3f)
-        )
+        // 键盘区（行0/1 功能行 + 行2-8 键面；屏:键 = 1:4，功能行:键面 = 2:7）
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(4f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val top = fc200vTopRows(state, comp = controller, fin = null, onOpenSettings = onOpenSettings)
+            TopFunctionRows(
+                leftTop = top.leftTop,
+                leftBottom = top.leftBottom,
+                rightTop = top.rightTop,
+                rightBottom = top.rightBottom,
+                onUp = top.onUp,
+                onDown = top.onDown,
+                onLeft = top.onLeft,
+                onRight = top.onRight,
+                shift = state.shift,
+                alpha = state.alpha,
+                modifier = Modifier.weight(2f)
+            )
+            Keypad(
+                rows = fc200vKeys(
+                    state, comp = controller, fin = null,
+                    onFinish = { activity?.finish() },
+                    onCatalog = { catalog = true },
+                    onVars = { varsPicker = true },
+                    onSto = { stoPicker = true },
+                    onRcl = { rclPicker = true }
+                ),
+                shift = state.shift,
+                alpha = state.alpha,
+                modifier = Modifier.weight(7f)
+            )
+        }
     }
     if (stoPicker) {
         VarPickerDialog("STO", state, onPick = { Memory.store(state, it) }, onDismiss = { stoPicker = false })
@@ -99,69 +134,10 @@ fun CompScreen(controller: CompController, onOpenModes: () -> Unit, onOpenSettin
     if (rclPicker) {
         VarPickerDialog("RCL", state, onPick = { controller.insert(it) }, onDismiss = { rclPicker = false })
     }
-}
-
-/** COMP 键面（SHIFT 层为第二功能）。 */
-private fun compKeys(
-    c: CompController,
-    onOpenModes: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onSto: () -> Unit,
-    onRcl: () -> Unit
-): List<List<Key>> {
-    val s = c.state
-    fun ins(text: String): Key = Key(text, onPress = { c.insert(text) })
-    fun insShift(label: String, shiftLabel: String, text: String, shiftText: String): Key =
-        Key(label, shiftLabel, onPress = { c.insert(text) }, onShiftPress = { c.insert(shiftText) })
-
-    return modeKeyRows(s) + listOf(
-        listOf(
-            Key("SHIFT", onPress = { s.toggleShift() }),
-            Key("MODE", "SET", onPress = { s.clearModifiers(); onOpenModes() }, onShiftPress = { s.clearModifiers(); onOpenSettings() }),
-            Key("◀", onPress = { s.clearModifiers(); c.moveLeft() }),
-            Key("▶", onPress = { s.clearModifiers(); c.moveRight() }),
-            Key("DEL", onPress = { s.clearModifiers(); c.delete() }),
-            Key("AC", onPress = { s.clearModifiers(); c.clear() })
-        ),
-        listOf(
-            insShift("x²", "x³", "²", "³"),
-            insShift("√(", "∛(", "√(", "∛("),
-            insShift("^", "ˣ√(", "^(", "ˣ√("),
-            insShift("ln(", "e^(", "ln(", "e^("),
-            insShift("log(", "10^(", "log(", "10^("),
-            insShift("(-)", "Abs(", "-", "Abs(")
-        ),
-        listOf(
-            insShift("sin(", "sin⁻¹(", "sin(", "asin("),
-            insShift("cos(", "cos⁻¹(", "cos(", "acos("),
-            insShift("tan(", "tan⁻¹(", "tan(", "atan("),
-            insShift("π", "e", "π", "e"),
-            insShift("nPr", "nCr", " nPr ", " nCr "),
-            insShift("%", "!", "%", "!")
-        ),
-        listOf(
-            ins("7"), ins("8"), ins("9"), ins("("), ins(")"), insShift(":", "Ran#", ":", "Ran#")
-        ),
-        listOf(
-            ins("4"), ins("5"), ins("6"), ins("×"), ins("÷"), insShift(",", "Pol(", ",", "Pol(")
-        ),
-        listOf(
-            ins("1"), ins("2"), ins("3"), ins("+"), ins("-"), insShift("Ans", "Rnd(", "Ans", "Rnd(")
-        ),
-        listOf(
-            ins("0"), ins("."), ins("E"),
-            Key("=", onPress = { s.clearModifiers(); c.execute() }),
-            Key("▲", onPress = { s.clearModifiers(); c.historyBack() }),
-            Key("▼", onPress = { s.clearModifiers(); c.historyForward() })
-        ),
-        listOf(
-            Key("STO", onPress = { s.clearModifiers(); onSto() }),
-            Key("RCL", onPress = { s.clearModifiers(); onRcl() }),
-            Key("M+", "M-", onPress = { s.clearModifiers(); Memory.memPlus(s) }, onShiftPress = { s.clearModifiers(); Memory.memMinus(s) }),
-            ins("M"), ins("Ans"), ins("⁻¹")
-        ),
-        listOf(
-            ins("A"), ins("B"), ins("C"), ins("D"), ins("X"), ins("Y")
-        )
-    )
+    if (varsPicker) {
+        VarPickerDialog("VARS", state, onPick = { controller.insert(it) }, onDismiss = { varsPicker = false })
+    }
+    if (catalog) {
+        CatalogDialog(state, onInsert = { controller.insert(it) }, onDismiss = { catalog = false })
+    }
 }

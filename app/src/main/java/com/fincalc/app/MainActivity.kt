@@ -1,11 +1,13 @@
 package com.fincalc.app
 
+import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,7 +43,9 @@ import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.Mode
 import com.fincalc.app.ui.comp.CompController
 import com.fincalc.app.ui.comp.CompScreen
-import com.fincalc.app.ui.dialogs.ModeDialog
+import com.fincalc.app.ui.comp.Memory
+import com.fincalc.app.ui.comp.VarPickerDialog
+import com.fincalc.app.ui.dialogs.CatalogDialog
 import com.fincalc.app.ui.dialogs.SettingsDialog
 import com.fincalc.app.ui.editor.ListEditor
 import com.fincalc.app.ui.finance.FinanceController
@@ -59,8 +64,10 @@ import com.fincalc.app.ui.finance.modes.costSpec
 import com.fincalc.app.ui.finance.modes.daysSpec
 import com.fincalc.app.ui.finance.modes.deprSpec
 import com.fincalc.app.ui.finance.modes.smplSpec
-import com.fincalc.app.ui.keyboard.Key
 import com.fincalc.app.ui.keyboard.Keypad
+import com.fincalc.app.ui.keyboard.TopFunctionRows
+import com.fincalc.app.ui.keyboard.fc200vKeys
+import com.fincalc.app.ui.keyboard.fc200vTopRows
 import com.fincalc.app.ui.keyboard.modeKeyRows
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
@@ -102,10 +109,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** 应用入口：按当前模式分发界面；模式菜单与设置由对话框弹出。 */
+/** 应用入口：按当前模式分发界面；设置由对话框弹出（模式切换已上键面，ModeDialog 入口移除）。 */
 @Composable
 fun FinCalcApp(state: CalcState) {
-    var showModes by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     // BEVN 子模式（BEV/MOS/DOL/DFL/DCL/QTY）；remember 键 = state.mode，切模式即重置为 BEV
     var bevnSub by remember(state.mode) { mutableStateOf(BevnSub.BEV) }
@@ -115,7 +121,6 @@ fun FinCalcApp(state: CalcState) {
     when (state.mode) {
         Mode.COMP -> CompScreen(
             controller = remember { CompController(state) },
-            onOpenModes = { showModes = true },
             onOpenSettings = { showSettings = true }
         )
         Mode.CASH -> CashModeBody(state)
@@ -147,17 +152,17 @@ fun FinCalcApp(state: CalcState) {
                     bevnSub = if (state.mode == Mode.BEVN) bevnSub else null,
                     onBevnSubChange = { bevnSub = it },
                     deprMethod = if (state.mode == Mode.DEPR) deprMethod else null,
-                    onDeprMethodChange = { deprMethod = it }
+                    onDeprMethodChange = { deprMethod = it },
+                    onOpenSettings = { showSettings = true }
                 )
             }
         }
     }
 
-    if (showModes) ModeDialog(state, onDismiss = { showModes = false })
     if (showSettings) SettingsDialog(state, onDismiss = { showSettings = false })
 }
 
-/** 金融模式主体：变量列表屏（BEVN/DEPR 含子模式切换条）+ 金融键盘。 */
+/** 金融模式主体：变量列表屏（BEVN/DEPR 含子模式切换条）+ FC-200V 键盘。 */
 @Composable
 private fun FinanceModeBody(
     state: CalcState,
@@ -166,7 +171,8 @@ private fun FinanceModeBody(
     bevnSub: BevnSub? = null,
     onBevnSubChange: (BevnSub) -> Unit = {},
     deprMethod: Depr.Method? = null,
-    onDeprMethodChange: (Depr.Method) -> Unit = {}
+    onDeprMethodChange: (Depr.Method) -> Unit = {},
+    onOpenSettings: () -> Unit = {}
 ) {
     // Task 3 审查前瞻提醒：spec 结构随 bondTerm/prfRatio/bevenSales/bevnSub 变化，
     // AMRT solver 语义随 payment 变化——全部纳入 remember 键，变更即重建 spec/controller（deprMethod 同理）。
@@ -181,6 +187,11 @@ private fun FinanceModeBody(
     ) { FinanceController(state, spec, solver) }
     // 长按变量弹出的公式目标（null = 不显示）
     var formulaVar by remember { mutableStateOf<FinanceVar?>(null) }
+    val activity = LocalContext.current as? Activity
+    var stoPicker by remember { mutableStateOf(false) }
+    var rclPicker by remember { mutableStateOf(false) }
+    var varsPicker by remember { mutableStateOf(false) }
+    var catalog by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
         if (bevnSub != null) {
             // BEVN 子模式切换条（仅 BEVN 显示；点击更新 bevnSub，spec 随之重建）
@@ -219,7 +230,39 @@ private fun FinanceModeBody(
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             FinanceScreen(controller, onLongPressVar = { formulaVar = it })
         }
-        Keypad(rows = financeKeys(controller, state), shift = state.shift, alpha = state.alpha, modifier = Modifier.weight(3f))
+        // 键盘区（行0/1 功能行 + 行2-8 键面；屏:键 = 1:4，功能行:键面 = 2:7）
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(4f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val top = fc200vTopRows(state, comp = null, fin = controller, onOpenSettings = onOpenSettings)
+            TopFunctionRows(
+                leftTop = top.leftTop,
+                leftBottom = top.leftBottom,
+                rightTop = top.rightTop,
+                rightBottom = top.rightBottom,
+                onUp = top.onUp,
+                onDown = top.onDown,
+                onLeft = top.onLeft,
+                onRight = top.onRight,
+                shift = state.shift,
+                alpha = state.alpha,
+                modifier = Modifier.weight(2f)
+            )
+            Keypad(
+                rows = fc200vKeys(
+                    state, comp = null, fin = controller,
+                    onFinish = { activity?.finish() },
+                    onCatalog = { catalog = true },
+                    onVars = { varsPicker = true },
+                    onSto = { stoPicker = true },
+                    onRcl = { rclPicker = true }
+                ),
+                shift = state.shift,
+                alpha = state.alpha,
+                modifier = Modifier.weight(7f)
+            )
+        }
     }
     // 长按变量行的公式弹窗（学习辅助）
     formulaVar?.let { v ->
@@ -230,25 +273,18 @@ private fun FinanceModeBody(
             confirmButton = { TextButton(onClick = { formulaVar = null }) { Text("OK") } }
         )
     }
-}
-
-/** 金融模式键盘：模式键两行 + 精简编辑键 + 数字区 + EXE/SOLVE。 */
-private fun financeKeys(c: FinanceController, state: CalcState): List<List<Key>> {
-    fun ins(text: String): Key = Key(text, onPress = { c.insert(text) })
-    return modeKeyRows(state) + listOf(
-        listOf(
-            Key("SHIFT", onPress = { state.toggleShift() }),
-            Key("▲", onPress = { c.moveUp() }),
-            Key("▼", onPress = { c.moveDown() }),
-            Key("DEL", onPress = { c.delete() }),
-            Key("AC", onPress = { c.clear() }),
-            Key("SOLVE", onPress = { c.solve() })
-        ),
-        listOf(ins("7"), ins("8"), ins("9"), ins("("), ins(")"), ins("÷")),
-        listOf(ins("4"), ins("5"), ins("6"), ins("×"), ins("+"), ins("E")),
-        listOf(ins("1"), ins("2"), ins("3"), ins("."), ins("%"), ins(",")),
-        listOf(ins("0"), ins("Ans"), ins("π"), ins("-"), Key("EXE", "SOLVE", onPress = { c.exe() }, onShiftPress = { c.solve() }))
-    )
+    if (stoPicker) {
+        VarPickerDialog("STO", state, onPick = { Memory.store(state, it) }, onDismiss = { stoPicker = false })
+    }
+    if (rclPicker) {
+        VarPickerDialog("RCL", state, onPick = { controller.insert(it) }, onDismiss = { rclPicker = false })
+    }
+    if (varsPicker) {
+        VarPickerDialog("VARS", state, onPick = { controller.insert(it) }, onDismiss = { varsPicker = false })
+    }
+    if (catalog) {
+        CatalogDialog(state, onInsert = { controller.insert(it) }, onDismiss = { catalog = false })
+    }
 }
 
 /** CASH 模式主体：I% 输入行 + Csh 列表编辑器 + 结果/错误 + NPV/IRR/NFV/PBP 求解钮 + 模式键行。 */
