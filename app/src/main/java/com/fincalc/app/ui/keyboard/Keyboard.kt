@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,7 +40,8 @@ enum class KeyColor { NORMAL, NUM, OP, MODE, MODE_ACTIVE, FUNC, BLUE }
 
 /**
  * 键定义：label 主功能；shiftLabel/onShiftPress 第二功能（SHIFT 态）；alphaLabel/onAlphaPress 红字层（ALPHA 态）；
- * onLongPress 长按钩子（可选，null 则无长按行为）；color 键帽配色（见 KeyColor）。
+ * onLongPress 长按钩子（可选，null 则无长按行为）；color 键帽配色（见 KeyColor）；
+ * labelColor 主标签文字色（null=默认 KEY_TEXT；SHIFT/ALPHA 键用对应标注色）。
  */
 data class Key(
     val label: String,
@@ -48,7 +51,8 @@ data class Key(
     val onLongPress: (() -> Unit)? = null,
     val alphaLabel: String? = null,
     val onAlphaPress: (() -> Unit)? = null,
-    val color: KeyColor = KeyColor.NORMAL
+    val color: KeyColor = KeyColor.NORMAL,
+    val labelColor: Color? = null
 )
 
 private fun baseColor(color: KeyColor): Color = when (color) {
@@ -70,7 +74,9 @@ private fun mainFontSize(color: KeyColor) = when (color) {
 /**
  * 单个键帽（Keypad 与 TopFunctionRows 共用，保证视觉一致）。
  * 键帽顶部印刷 shift 标注（黄）、底部印刷 alpha 标注（红）——非激活态也印刷（真机风格）；
- * 激活时对应标注层升格为主标签显示（原位置不再重复小字）。
+ * 激活时对应标注层升格为主标签显示（原位置不再重复小字，文字用对应标注色）。
+ * 键帽为小曲率圆角矩形（12.dp，渲染图风格）；label 含 "\n" 的两行键（SHORT CUT1/2）
+ * 用 11sp 小字、行中心对齐键高 45%/75%，与顶部 shift 标注（~14% 高）互不重叠。
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -83,6 +89,12 @@ fun KeyCap(key: Key, shift: Boolean, alpha: Boolean, modifier: Modifier = Modifi
         alphaActive -> key.alphaLabel!!
         shiftActive -> key.shiftLabel!!
         else -> key.label
+    }
+    // 主标签文字色：激活升格显示用对应标注色（本就黄/红），否则用 labelColor（null=默认）
+    val labelColor = when {
+        alphaActive -> KEY_ALPHA_MARK
+        shiftActive -> KEY_SHIFT_MARK
+        else -> key.labelColor ?: KEY_TEXT
     }
     // Material3 Button 不支持长按，改用 Surface + combinedClickable
     Surface(
@@ -109,7 +121,7 @@ fun KeyCap(key: Key, shift: Boolean, alpha: Boolean, modifier: Modifier = Modifi
             shiftActive -> KEY_SHIFT_ACTIVE
             else -> baseColor(key.color)
         },
-        shape = RoundedCornerShape(percent = 50)
+        shape = RoundedCornerShape(12.dp)   // 渲染图小曲率圆角矩形（DPad 仍保持圆形）
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (key.shiftLabel != null && !shiftActive) {
@@ -141,22 +153,24 @@ fun KeyCap(key: Key, shift: Boolean, alpha: Boolean, modifier: Modifier = Modifi
                 Text(
                     text = lines[0],
                     fontSize = mainFontSize(key.color),
-                    color = KEY_TEXT,
+                    color = labelColor,
                     textAlign = TextAlign.Center,
                     maxLines = 1
                 )
             } else {
-                // label 含 "\n" 时拆两行绘制（SHORT CUT1/2）
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    for (line in lines) {
-                        Text(
-                            text = line,
-                            fontSize = mainFontSize(key.color),
-                            color = KEY_TEXT,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1
-                        )
+                // label 含 "\n" 拆两行绘制（SHORT CUT1/2）：11sp 小字，
+                // 行中心对齐键高 45%/75%，与顶部 shift 标注（~14% 高）、底部留白互不重叠
+                Column(Modifier.fillMaxSize()) {
+                    Spacer(Modifier.weight(30f))
+                    Box(Modifier.weight(30f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(lines[0], fontSize = 11.sp, color = labelColor,
+                            textAlign = TextAlign.Center, maxLines = 1)
                     }
+                    Box(Modifier.weight(30f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(lines[1], fontSize = 11.sp, color = labelColor,
+                            textAlign = TextAlign.Center, maxLines = 1)
+                    }
+                    Spacer(Modifier.weight(10f))
                 }
             }
         }

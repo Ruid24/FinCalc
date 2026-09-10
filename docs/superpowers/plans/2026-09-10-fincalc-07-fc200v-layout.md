@@ -114,3 +114,44 @@
   顺手清理：InputLine 未使用的 TextStyle import；Theme.kt 补 KEY_FUNC/SCREEN_SEL_TXT 耦合意图注释。
   计划文本回改：fc200vKeys 实为行 2-8 共 7 行（行 0/1 由 fc200vTopRows 生成），初稿"9 行"表述已修正。
   光标颜色纠偏说明：任务书"保持红色光标"与史实不符（光标从未红过），按渲染图落地为 `SCREEN_CURSOR` 红。
+- **Task 4 双审查后修复**（规格审查：通过；质量审查：1 项阻断 + 3 项建议，全部修复）：
+  1. **B1（阻断）**：即输即改的自引用表达式（如 A+1）被中间提交重复求值（EXE 时 11→12）→ `editBase` 快照机制：编辑开始时记录本行变量原值，commitEdit 求值时本行变量以快照为准，exe/select/clear/solve 清快照（FinanceController.kt）。附带发现：金融变量键（n、I%、PV…）不在表达式变量体系内（tokenizer 仅认 ABCDXYM/Ans/e），真实自引用不可达，快照为防御性修复；测试用手工 spec（key=A）覆盖幂等性。
+  2. **S1**：旋转手势加最小半径门限（<30% 半径只更新基准角不累积），防直线划过圆心/抖动连发（DPad.kt）。
+  3. **S2**：圆心坐标改为在 onDrag/onDragStart 内读 PointerInputScope.size（动态属性，分屏 resize 不过期），替代启动时缓存（DPad.kt）。
+  4. **S3**：FinanceController.delete() 补清 errorText/resultText，与 insert 对称。
+  规格审查注记在案：4.1.1 规格文本"行权重 0.82→1.0"与代码史实不符（0.82 从未存在，TopFunctionRows 本就均分），终态（9 行等高）符合意图。
+  测试 235 → 241（Task 4 新增 4 项即输即改 + 2 项自引用幂等），全绿。
+
+## Task 4：真机走查修复与功能增强（2026-09-10 用户真机反馈）
+
+> 来源：真机截图 `media/Screenshot_2026-09-10-14-32-40-056_com.fincalc.ap.jpg` + 用户反馈。
+
+### 4.1 UI 修复
+
+1. **SHORT CUT1/2 文字重叠**：FMEM 黄标与两行主标签在三行空间内重叠。修法：行 0/1 权重 0.82→1.0（与其他行同高）；SHORT CUT 两行主标签缩小字号（约 11sp）；KeyCap 对"shift 标注 + 两行 label"组合重排垂直布局（标注 ~0.14h、label 两行中心 ~0.42h/0.74h），保证三行互不重叠。
+2. **键帽形状**：鹅卵石（RoundedCornerShape 50%）→ 小曲率圆角矩形（RoundedCornerShape(12.dp)，对照渲染图 radius≈11%）。DPad 底盘与四向键保持圆形不变。
+3. **SHIFT/ALPHA 键常态文字着色**（用户两次澄清后定稿）：SHIFT 键文字黄色 `KEY_SHIFT_MARK`、ALPHA 键文字红色 `KEY_ALPHA_MARK`（对齐渲染图与真机印刷色；整键底色方案被文字着色方案取代）。实现：Key 加 `labelColor: Color? = null`（null=默认 KEY_TEXT），KeyCap 应用；SHIFT/ALPHA 两键传入。激活态行为不变（shift 态带 shiftLabel 键 #39493B 底、alpha 态 #4B3230 底）。
+
+### 4.2 方向盘旋转手势
+
+- DPad 圆盘加单指画圈检测：`pointerInput` + `detectDragGestures`，逐帧计算触点相对圆心的角度差并累积；累积超过阈值（25°）触发一次回调并扣减（支持连续快速旋转多次触发）。
+- 回调语义：`onRotateCW`（顺时针）/`onRotateCCW`（逆时针）。接线（fc200vTopRows 加这两个参数）：
+  - COMP 模式：CW=moveRight、CCW=moveLeft（光标左右）；
+  - 金融模式（上下选择菜单）：CW=moveDown、CCW=moveUp。
+- 每次触发视同一次按键：清修饰态 + KEYBOARD_TAP 振动。
+- 四向键点击行为保持不变（旋转是增量手势，不替代点击）。
+
+### 4.3 金融模式即输即改（免 EXE）
+
+FinanceController 语义调整（真机 EXE 确认保留，但输入即时生效）：
+
+- `insert`/`delete` 后：尝试 `ExprEngine.eval(editText, ...)`，**成功立即 setVar 写回当前行变量**（integer 行 round）；中间态/非法表达式静默保持旧值（不报错误）。
+- `select`/`moveUp`/`moveDown`：先提交当前编辑（eval 成功才写回），再移动选中行——不再丢弃未确认输入。
+- `exe()` 保持现有行为（提交 + 错误提示）。
+- 测试：FinanceControllerTest 新增/更新用例（输入即写回、移动提交、非法中间态不写回、integer 行 round）；确认 TvmModesTest 等现有金融测试不破。
+
+### 4.4 验收
+
+- 真机对照截图复查 4.1 三项；
+- 旋转手势两模式手感；即输即改全流程；
+- 全部测试绿 + assembleDebug。

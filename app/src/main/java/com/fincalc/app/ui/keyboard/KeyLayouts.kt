@@ -3,6 +3,8 @@ package com.fincalc.app.ui.keyboard
 import com.fincalc.app.core.expr.AngleUnit
 import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.Mode
+import com.fincalc.app.ui.KEY_ALPHA_MARK
+import com.fincalc.app.ui.KEY_SHIFT_MARK
 import com.fincalc.app.ui.comp.CompController
 import com.fincalc.app.ui.comp.Memory
 import com.fincalc.app.ui.finance.FinanceController
@@ -26,7 +28,7 @@ private fun modeKey(
     color = if (state.mode == m) KeyColor.MODE_ACTIVE else KeyColor.MODE
 )
 
-/** 顶部功能行（行0/行1）数据：4 个两键列表（TopFunctionRows 的左右上下）+ DPad 四向回调。 */
+/** 顶部功能行（行0/行1）数据：4 个两键列表（TopFunctionRows 的左右上下）+ DPad 四向回调与旋转回调。 */
 class Fc200vTopRows(
     val leftTop: List<Key>,
     val leftBottom: List<Key>,
@@ -35,7 +37,9 @@ class Fc200vTopRows(
     val onUp: () -> Unit,
     val onDown: () -> Unit,
     val onLeft: () -> Unit,
-    val onRight: () -> Unit
+    val onRight: () -> Unit,
+    val onRotateCW: () -> Unit,
+    val onRotateCCW: () -> Unit
 )
 
 /**
@@ -82,8 +86,8 @@ fun fc200vTopRows(
 
     return Fc200vTopRows(
         leftTop = listOf(
-            Key("SHIFT", onPress = { state.toggleShift() }, color = KeyColor.FUNC),
-            Key("ALPHA", onPress = { state.toggleAlpha() }, color = KeyColor.FUNC)
+            Key("SHIFT", onPress = { state.toggleShift() }, color = KeyColor.FUNC, labelColor = KEY_SHIFT_MARK),
+            Key("ALPHA", onPress = { state.toggleAlpha() }, color = KeyColor.FUNC, labelColor = KEY_ALPHA_MARK)
         ),
         leftBottom = listOf(shortcutKey(1), shortcutKey(2)),
         rightTop = listOf(
@@ -97,7 +101,10 @@ fun fc200vTopRows(
         onUp = { if (comp != null) { state.clearModifiers(); comp.historyBack() } else fin!!.moveUp() },
         onDown = { if (comp != null) { state.clearModifiers(); comp.historyForward() } else fin!!.moveDown() },
         onLeft = { if (comp != null) { state.clearModifiers(); comp.moveLeft() } else state.clearModifiers() },   // 金融模式暂无行为
-        onRight = { if (comp != null) { state.clearModifiers(); comp.moveRight() } else state.clearModifiers() }
+        onRight = { if (comp != null) { state.clearModifiers(); comp.moveRight() } else state.clearModifiers() },
+        // 方向盘旋转手势：COMP 顺/逆时针=光标右/左移；金融模式=选中行下/上移（fin 的 select 内部先 clearModifiers）
+        onRotateCW = { if (comp != null) { state.clearModifiers(); comp.moveRight() } else fin!!.moveDown() },
+        onRotateCCW = { if (comp != null) { state.clearModifiers(); comp.moveLeft() } else fin!!.moveUp() }
     )
 }
 

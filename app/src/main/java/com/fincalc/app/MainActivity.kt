@@ -249,6 +249,8 @@ private fun FinanceModeBody(
                 onDown = top.onDown,
                 onLeft = top.onLeft,
                 onRight = top.onRight,
+                onRotateCW = top.onRotateCW,
+                onRotateCCW = top.onRotateCCW,
                 shift = state.shift,
                 alpha = state.alpha,
                 modifier = Modifier.weight(2f)
