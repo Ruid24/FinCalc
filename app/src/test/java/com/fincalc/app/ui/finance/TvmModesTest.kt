@@ -48,7 +48,7 @@ class TvmModesTest {
         val c = FinanceController(s, spec, solver)
         c.insert("6"); c.exe()                                        // n=6
         c.moveDown()                                              // I% 行（SL 不用 I%）不输入
-        c.moveDown(); c.insert("1"); c.insert("5"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.exe()  // PV=150000
+        c.moveDown(); c.insert("1"); c.insert("5"); c.insert("0"); c.insert("0"); c.insert("0"); c.insert("0"); c.exe()  // PV=150000
         c.moveDown(); c.exe()                                      // FV=0（保持默认）
         c.moveDown(); c.insert("3"); c.exe()                           // j=3
         c.moveDown(); c.insert("2"); c.exe()                           // YR1=2
