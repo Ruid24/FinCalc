@@ -17,8 +17,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fincalc.app.ui.SCREEN_BG
+import com.fincalc.app.ui.SCREEN_ERROR
+import com.fincalc.app.ui.SCREEN_SEL_BG
+import com.fincalc.app.ui.SCREEN_SEL_TXT
+import com.fincalc.app.ui.SCREEN_TXT
 
-/** 金融模式通用屏：多行可滚动变量列表，当前行高亮（设计文档 §6）。长按变量行弹公式（学习辅助）。 */
+/** 金融模式通用屏：多行可滚动变量列表（浅色液晶屏），当前行反色高亮（深底浅字）。长按变量行弹公式（学习辅助）。 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FinanceScreen(
@@ -28,7 +33,7 @@ fun FinanceScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1B2A1E))
+            .background(SCREEN_BG)
             .padding(12.dp)
             .verticalScroll(rememberScrollState())
     ) {
@@ -37,7 +42,7 @@ fun FinanceScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(if (isCurrent) Color(0xFF39493B) else Color.Transparent)
+                    .background(if (isCurrent) SCREEN_SEL_BG else Color.Transparent)
                     .combinedClickable(
                         onClick = { controller.select(index) },
                         onLongClick = { onLongPressVar(v) }
@@ -46,7 +51,7 @@ fun FinanceScreen(
             ) {
                 Text(
                     text = "${v.label} = ${controller.displayValue(index, v)}",
-                    color = Color(0xFFE8F5E9),
+                    color = if (isCurrent) SCREEN_SEL_TXT else SCREEN_TXT,
                     fontSize = 20.sp,
                     fontFamily = FontFamily.Serif
                 )
@@ -54,10 +59,10 @@ fun FinanceScreen(
         }
         // 错误/结果行
         controller.errorText?.let {
-            Text(it, color = Color(0xFFFFB4A2), fontSize = 18.sp)
+            Text(it, color = SCREEN_ERROR, fontSize = 18.sp)
         }
         controller.resultText?.let {
-            Text(it, color = Color(0xFFE8F5E9), fontSize = 20.sp)
+            Text(it, color = SCREEN_TXT, fontSize = 20.sp)
         }
     }
 }

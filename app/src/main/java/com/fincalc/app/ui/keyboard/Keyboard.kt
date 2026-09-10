@@ -20,8 +20,20 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fincalc.app.ui.KEY_ALPHA_ACTIVE
+import com.fincalc.app.ui.KEY_ALPHA_MARK
+import com.fincalc.app.ui.KEY_BLUE
+import com.fincalc.app.ui.KEY_FUNC
+import com.fincalc.app.ui.KEY_MODE
+import com.fincalc.app.ui.KEY_MODE_ACTIVE
+import com.fincalc.app.ui.KEY_NORMAL
+import com.fincalc.app.ui.KEY_NUM
+import com.fincalc.app.ui.KEY_OP
+import com.fincalc.app.ui.KEY_SHIFT_ACTIVE
+import com.fincalc.app.ui.KEY_SHIFT_MARK
+import com.fincalc.app.ui.KEY_TEXT
 
-/** 键帽配色（FC-200V 真机色板）：数字稍亮、模式/功能稍暗、当前模式高亮、DEL/AC/SOLVE 蓝键。 */
+/** 键帽配色（FC-200V 真机色板，常量见 ui/Theme.kt）：数字稍亮、模式/功能稍暗、当前模式高亮、DEL/AC/SOLVE 蓝键。 */
 enum class KeyColor { NORMAL, NUM, OP, MODE, MODE_ACTIVE, FUNC, BLUE }
 
 /**
@@ -39,20 +51,14 @@ data class Key(
     val color: KeyColor = KeyColor.NORMAL
 )
 
-private val KEY_SHIFT_ACTIVE = Color(0xFF39493B)
-private val KEY_ALPHA_ACTIVE = Color(0xFF4B3230)
-private val KEY_TEXT = Color(0xFFE8F5E9)
-private val KEY_SHIFT_MARK = Color(0xFFF0C040)   // shift 标注黄（真机印刷色）
-private val KEY_ALPHA_MARK = Color(0xFFE05544)   // alpha 标注红（真机印刷色）
-
 private fun baseColor(color: KeyColor): Color = when (color) {
-    KeyColor.NORMAL -> Color(0xFF232B25)
-    KeyColor.NUM -> Color(0xFF34403A)
-    KeyColor.OP -> Color(0xFF3A483E)
-    KeyColor.MODE -> Color(0xFF1E261F)
-    KeyColor.MODE_ACTIVE -> Color(0xFF4E6B52)
-    KeyColor.FUNC -> Color(0xFF1E261F)
-    KeyColor.BLUE -> Color(0xFF2B5EA7)
+    KeyColor.NORMAL -> KEY_NORMAL
+    KeyColor.NUM -> KEY_NUM
+    KeyColor.OP -> KEY_OP
+    KeyColor.MODE -> KEY_MODE
+    KeyColor.MODE_ACTIVE -> KEY_MODE_ACTIVE
+    KeyColor.FUNC -> KEY_FUNC
+    KeyColor.BLUE -> KEY_BLUE
 }
 
 private fun mainFontSize(color: KeyColor) = when (color) {

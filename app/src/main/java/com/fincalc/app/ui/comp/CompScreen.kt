@@ -18,12 +18,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fincalc.app.core.format.NumberFormatter
+import com.fincalc.app.ui.APP_BG
+import com.fincalc.app.ui.SCREEN_BG
+import com.fincalc.app.ui.SCREEN_ERROR
+import com.fincalc.app.ui.SCREEN_HINT
+import com.fincalc.app.ui.SCREEN_TXT
 import com.fincalc.app.ui.dialogs.CatalogDialog
 import com.fincalc.app.ui.keyboard.Keypad
 import com.fincalc.app.ui.keyboard.TopFunctionRows
@@ -39,13 +43,13 @@ fun CompScreen(controller: CompController, onOpenSettings: () -> Unit) {
     var rclPicker by remember { mutableStateOf(false) }
     var varsPicker by remember { mutableStateOf(false) }
     var catalog by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
-        // 显示屏（深色液晶屏底色）
+    Column(modifier = Modifier.fillMaxSize().background(APP_BG)) {
+        // 显示屏（FC-200V 浅色液晶屏底色）
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(Color(0xFF1B2A1E))
+                .background(SCREEN_BG)
                 .padding(12.dp)
         ) {
             // 状态行（模式/角度/SHIFT/ALPHA 指示符）
@@ -58,11 +62,11 @@ fun CompScreen(controller: CompController, onOpenSettings: () -> Unit) {
                         if (state.shift) append("  SHIFT")
                         if (state.alpha) append("  ALPHA")
                     },
-                    color = Color(0xFF9DBA9F),
+                    color = SCREEN_HINT,
                     fontSize = 12.sp
                 )
             }
-            // 输入行（实时 LaTeX 排版，横向可滚动）
+            // 输入行（实时 LaTeX 排版，横向可滚动；红色闪烁光标见 InputLine）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -71,7 +75,7 @@ fun CompScreen(controller: CompController, onOpenSettings: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (controller.input.isEmpty()) {
-                    Text("0", color = Color(0xFFE8F5E9), fontSize = 22.sp, fontFamily = FontFamily.Serif)
+                    Text("0", color = SCREEN_TXT, fontSize = 22.sp, fontFamily = FontFamily.Serif)
                 } else {
                     InputLine(input = controller.input, cursor = controller.cursor, onCursorTap = { controller.setCursor(it) }, baseTextSize = 22.sp)
                 }
@@ -81,10 +85,10 @@ fun CompScreen(controller: CompController, onOpenSettings: () -> Unit) {
                 val error = controller.errorText
                 val result = controller.result
                 when {
-                    error != null -> Text(error, color = Color(0xFFFFB4A2), fontSize = 20.sp)
+                    error != null -> Text(error, color = SCREEN_ERROR, fontSize = 20.sp)
                     result != null -> Text(
                         NumberFormatter.format(result, state.settings.display),
-                        color = Color(0xFFE8F5E9),
+                        color = SCREEN_TXT,
                         fontSize = 26.sp,
                         fontFamily = FontFamily.Serif,
                         modifier = Modifier.fillMaxWidth(),

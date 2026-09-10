@@ -19,16 +19,17 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fincalc.app.ui.SCREEN_CURSOR
+import com.fincalc.app.ui.SCREEN_TXT
 import com.fincalc.app.ui.math.MathView
 import com.fincalc.app.ui.math.measurePrefixWidth
 import kotlin.math.roundToInt
 
-/** 排版输入行 + 闪烁光标 + 触控定位（用户反馈 2026-08-24）。 */
+/** 排版输入行 + 红色闪烁光标 + 触控定位（用户反馈 2026-08-24；Task 3 起配浅色液晶屏：深墨字 + 红光标）。 */
 @Composable
 fun InputLine(
     input: String,
@@ -36,7 +37,8 @@ fun InputLine(
     onCursorTap: (Int) -> Unit,
     modifier: Modifier = Modifier,
     baseTextSize: androidx.compose.ui.unit.TextUnit = 22.sp,
-    color: Color = Color(0xFFE8F5E9)
+    color: Color = SCREEN_TXT,
+    cursorColor: Color = SCREEN_CURSOR
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -66,14 +68,14 @@ fun InputLine(
         }
     ) {
         MathView(input, baseTextSize = baseTextSize, color = color)
-        // 光标条（常驻 + alpha 控制显隐）
+        // 光标条（常驻红色 + alpha 控制显隐；与文字色解耦，浅屏上保持红色）
         Box(
             modifier = Modifier
                 .offset(x = with(density) { cursorX.toDp() }, y = 0.dp)
                 .width(2.dp)
                 .height(with(density) { (em * 1.1f).toDp() })
                 .alpha(if (alpha > 0.5f) 1f else 0f)
-                .background(color)
+                .background(cursorColor)
         )
     }
 }

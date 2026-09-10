@@ -28,14 +28,15 @@ import com.fincalc.app.core.render.SubBox
 import com.fincalc.app.core.render.SupBox
 import com.fincalc.app.core.render.TextBox
 import com.fincalc.app.core.render.TextMeasure
+import com.fincalc.app.ui.SCREEN_TXT
 
-/** 数学公式视图：自研排版器矢量绘制（深色液晶屏上的亮色文字）。 */
+/** 数学公式视图：自研排版器矢量绘制。文字色由调用方按屏底色给定（当前唯一调用方 InputLine 传 SCREEN_TXT，浅色液晶屏）。 */
 @Composable
 fun MathView(
     program: Program,
     modifier: Modifier = Modifier,
     baseTextSize: androidx.compose.ui.unit.TextUnit = 22.sp,
-    color: Color = Color(0xFFE8F5E9)
+    color: Color = SCREEN_TXT
 ) {
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -61,7 +62,7 @@ fun MathView(
     input: String,
     modifier: Modifier = Modifier,
     baseTextSize: androidx.compose.ui.unit.TextUnit = 22.sp,
-    color: Color = Color(0xFFE8F5E9)
+    color: Color = SCREEN_TXT
 ) {
     val program = remember(input) {
         try {

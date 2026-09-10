@@ -41,6 +41,10 @@ import com.fincalc.app.core.format.NumberFormatter
 import com.fincalc.app.data.Prefs
 import com.fincalc.app.state.CalcState
 import com.fincalc.app.state.Mode
+import com.fincalc.app.ui.APP_BG
+import com.fincalc.app.ui.BTN_NORMAL
+import com.fincalc.app.ui.KEY_MODE_ACTIVE
+import com.fincalc.app.ui.KEY_TEXT
 import com.fincalc.app.ui.comp.CompController
 import com.fincalc.app.ui.comp.CompScreen
 import com.fincalc.app.ui.comp.Memory
@@ -192,7 +196,7 @@ private fun FinanceModeBody(
     var rclPicker by remember { mutableStateOf(false) }
     var varsPicker by remember { mutableStateOf(false) }
     var catalog by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
+    Column(modifier = Modifier.fillMaxSize().background(APP_BG)) {
         if (bevnSub != null) {
             // BEVN 子模式切换条（仅 BEVN 显示；点击更新 bevnSub，spec 随之重建）
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -202,7 +206,7 @@ private fun FinanceModeBody(
                         modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
                         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (sub == bevnSub) Color(0xFF4E6B52) else Color(0xFF2E3B30)
+                            containerColor = if (sub == bevnSub) KEY_MODE_ACTIVE else BTN_NORMAL
                         )
                     ) {
                         Text(sub.name, fontSize = 12.sp, maxLines = 1)
@@ -219,7 +223,7 @@ private fun FinanceModeBody(
                         modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
                         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (m == deprMethod) Color(0xFF4E6B52) else Color(0xFF2E3B30)
+                            containerColor = if (m == deprMethod) KEY_MODE_ACTIVE else BTN_NORMAL
                         )
                     ) {
                         Text(m.name, fontSize = 12.sp, maxLines = 1)
@@ -295,13 +299,13 @@ private fun CashModeBody(state: CalcState) {
     var iText by remember(state.mode) {
         mutableStateOf(NumberFormatter.format(state.getVar("I%"), state.settings.display))
     }
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
+    Column(modifier = Modifier.fillMaxSize().background(APP_BG)) {
         Column(modifier = Modifier.fillMaxWidth().weight(1f).padding(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("I% =", color = Color(0xFFE8F5E9), fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
+                Text("I% =", color = KEY_TEXT, fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
                 OutlinedTextField(
                     value = iText,
                     onValueChange = { t ->
@@ -321,13 +325,13 @@ private fun CashModeBody(state: CalcState) {
                 )
             }
             TextButton(onClick = { controller.addRow() }) {
-                Text("ADD", color = Color(0xFFE8F5E9))
+                Text("ADD", color = KEY_TEXT)
             }
             controller.errorText?.let {
                 Text(it, color = Color(0xFFFFB4A2), fontSize = 18.sp)
             }
             controller.resultText?.let {
-                Text(it, color = Color(0xFFE8F5E9), fontSize = 20.sp)
+                Text(it, color = KEY_TEXT, fontSize = 20.sp)
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 listOf("NPV", "IRR", "NFV", "PBP").forEach { target ->
@@ -335,7 +339,7 @@ private fun CashModeBody(state: CalcState) {
                         onClick = { controller.solve(target) },
                         modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
                         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E3B30))
+                        colors = ButtonDefaults.buttonColors(containerColor = BTN_NORMAL)
                     ) {
                         Text(target, fontSize = 13.sp, maxLines = 1)
                     }
@@ -366,7 +370,7 @@ private fun StatModeBody(state: CalcState) {
         if (controller.regType != null) add("Y")
         if (state.settings.statFreq) add("FREQ")
     }
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFF121712))) {
+    Column(modifier = Modifier.fillMaxSize().background(APP_BG)) {
         Column(modifier = Modifier.fillMaxWidth().weight(1f).padding(8.dp)) {
             types.chunked(4).forEach { rowTypes ->
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -376,7 +380,7 @@ private fun StatModeBody(state: CalcState) {
                             modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 2.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (controller.regType == type) Color(0xFF4E6B52) else Color(0xFF2E3B30)
+                                containerColor = if (controller.regType == type) KEY_MODE_ACTIVE else BTN_NORMAL
                             )
                         ) {
                             Text(label, fontSize = 11.sp, maxLines = 1)
@@ -406,17 +410,17 @@ private fun StatModeBody(state: CalcState) {
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = { controller.addRow() }) {
-                    Text("ADD", color = Color(0xFFE8F5E9))
+                    Text("ADD", color = KEY_TEXT)
                 }
                 TextButton(onClick = { controller.compute() }) {
-                    Text("CALC", color = Color(0xFFE8F5E9))
+                    Text("CALC", color = KEY_TEXT)
                 }
             }
             controller.errorText?.let {
                 Text(it, color = Color(0xFFFFB4A2), fontSize = 18.sp)
             }
             controller.resultLines.forEach {
-                Text(it, color = Color(0xFFE8F5E9), fontSize = 14.sp, maxLines = 1)
+                Text(it, color = KEY_TEXT, fontSize = 14.sp, maxLines = 1)
             }
         }
         Keypad(rows = modeKeyRows(state), shift = state.shift, alpha = state.alpha, modifier = Modifier.weight(3f))

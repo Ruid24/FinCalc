@@ -66,7 +66,7 @@
 
 **文件**：`ui/keyboard/KeyLayouts.kt`（重写）、`MainActivity.kt`、`ui/comp/CompScreen.kt`、`ui/dialogs/`（新 CatalogDialog）、`data/Prefs.kt`
 
-1. `fc200vKeys(state, comp: CompController?, fin: FinanceController?, onOpenSettings, onFinish, ...)`：按总谱生成全部 9 行；行为按上表按模式分发（comp/fin 二选一非空）。
+1. `fc200vKeys(state, comp: CompController?, fin: FinanceController?, onFinish, ...)`：按总谱生成行 2-8 共 7 行（行 0/1 由 `fc200vTopRows` 生成，合计 9 行）；行为按上表按模式分发（comp/fin 二选一非空）。
 2. `modeKeyRows` 改造：加当前模式高亮（KeyColor.MODE_ACTIVE）。
 3. `CatalogDialog`（新）：变量区（A~D、X、Y、M、Ans 显示现值，点击插入变量名）+ 函数目录区（从现有 compKeys 收纳的函数列表，点击插入文本）；`VARS` 弹只含变量区的简化版（可复用 VarPickerDialog）。
 4. SHORT CUT：CalcState 加 `shortcut1/shortcut2: Mode?`（mutableStateOf）；Prefs 加两个 stringPreferencesKey 持久化；长按绑定=当前模式、短按 switchMode、shift 清除。
@@ -81,7 +81,7 @@
 1. 屏区改浅色液晶：背景 #FFD8E2CE、主文字 #FF141A12、选中行反色（深底 #FF1A221A 浅字 #FFD8E2CE）、错误文字保持可读红（深红 #FF8C3A2E）；COMP 屏状态行/输入行/结果行同色板。光标保持红色闪烁。
 2. 测试：
    - `CalcStateTest` 补 alpha 态用例（toggle 互斥、按键后自动解除）；
-   - 键面 smoke test：fc200vKeys 行数=9、行 5-8 列数=5、关键键存在（SOLVE 独立键、CTLG 在行 4、模式行 12 键）；
+   - 键面 smoke test：fc200vKeys 行数=7（行 2-8；另 fc200vTopRows 供行 0/1）、行 5-8 列数=5、关键键存在（SOLVE 独立键、CTLG 在行 4、模式行 12 键）；
    - SHORT CUT 绑定/跳转/清除的状态机用例（Prefs 持久化不测，依赖 Context）；
    - 现有 223 测保持全绿（键面重排不应影响控制器/引擎测试）。
 3. `./gradlew testDebugUnitTest assembleDebug` 全绿。
@@ -108,3 +108,9 @@
   6. "旧 compKeys" 注释三处改为"改造前 compKeys（已删除）"。
   确认项：DRG► 实为 DEG/RAD/GRA 三态循环（计划初稿误写两态，已回改上文行为映射表）；INS/Δ% 仅印刷不绑定，shift 按下回落主功能（KeyCap 既定回退语义）。
   记录未修（后续任务候选）：CASH/STAT 屏无 SETUP/ESC/ON 入口不一致；弹窗四元组在 CompScreen/MainActivity 重复（可抽 CalcDialogsHost）；键表每次重组重建（既有设计）。
+- **Task 3 双审查后修复**（规格审查：通过；质量审查：无阻断、2 项应修）：
+  1. DPad 四向箭头 `Color.White` 漏收口 → 改用 `KEY_TEXT`；
+  2. SHORT CUT 绑定路径补键级测试（`onLongPress` 回调绑定当前模式 + 修饰态清除断言）；
+  顺手清理：InputLine 未使用的 TextStyle import；Theme.kt 补 KEY_FUNC/SCREEN_SEL_TXT 耦合意图注释。
+  计划文本回改：fc200vKeys 实为行 2-8 共 7 行（行 0/1 由 fc200vTopRows 生成），初稿"9 行"表述已修正。
+  光标颜色纠偏说明：任务书"保持红色光标"与史实不符（光标从未红过），按渲染图落地为 `SCREEN_CURSOR` 红。

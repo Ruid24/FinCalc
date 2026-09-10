@@ -16,13 +16,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-private val DPAD_BASE = Color(0xFF2C362E)
-private val DPAD_KEY = Color(0xFF3A463C)
+import com.fincalc.app.ui.DPAD_BASE
+import com.fincalc.app.ui.DPAD_KEY
+import com.fincalc.app.ui.KEY_TEXT
 
 /**
  * 菱形方向盘（FC-200V 真机 REPLAY 键）：圆形底盘 + ▲▼◄► 四键菱形排布
@@ -69,7 +68,7 @@ private fun DPadKey(symbol: String, modifier: Modifier, onPress: () -> Unit) {
         color = DPAD_KEY
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(symbol, color = Color.White, fontSize = 14.sp, maxLines = 1)
+            Text(symbol, color = KEY_TEXT, fontSize = 14.sp, maxLines = 1)
         }
     }
 }
