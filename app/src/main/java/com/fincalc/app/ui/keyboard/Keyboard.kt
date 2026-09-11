@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fincalc.app.ui.KEY_ALPHA_ACTIVE
@@ -177,17 +179,26 @@ fun KeyCap(key: Key, shift: Boolean, alpha: Boolean, modifier: Modifier = Modifi
     }
 }
 
-/** 卡西欧风格键面网格（行内键等宽）。短按触发主/第二/红字功能；长按触发 onLongPress；点击带振动反馈。 */
+/**
+ * 卡西欧风格键面网格（行内键等宽）。短按触发主/第二/红字功能；长按触发 onLongPress；点击带振动反馈。
+ * fixedRowHeight = null（默认）：各行 weight(1f) 均分 modifier 给定的高度（COMP/金融模式全键盘）；
+ * 非 null：各行固定为该高度（CASH/STAT 两行模式键，计划 7 Task 5.2——否则两行被 weight 拉成半屏巨型键），
+ * 键盘整体随内容收缩，调用方勿再传 weight/fillMaxHeight 类 modifier。
+ */
 @Composable
 fun Keypad(
     rows: List<List<Key>>,
     shift: Boolean,
     alpha: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fixedRowHeight: Dp? = null
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (row in rows) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = if (fixedRowHeight != null) Modifier.height(fixedRowHeight) else Modifier.weight(1f)
+            ) {
                 for (key in row) {
                     KeyCap(key, shift, alpha, Modifier.weight(1f).fillMaxHeight())
                 }

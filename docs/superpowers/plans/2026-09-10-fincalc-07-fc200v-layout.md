@@ -121,6 +121,11 @@
   4. **S3**：FinanceController.delete() 补清 errorText/resultText，与 insert 对称。
   规格审查注记在案：4.1.1 规格文本"行权重 0.82→1.0"与代码史实不符（0.82 从未存在，TopFunctionRows 本就均分），终态（9 行等高）符合意图。
   测试 235 → 241（Task 4 新增 4 项即输即改 + 2 项自引用幂等），全绿。
+- **Task 5 双审查后修复**（规格审查：通过，一处实现优于字面在案——错误行用 SCREEN_ERROR 而非规格文本的 SCREEN_TXT，与 Task 3 先例一致；质量审查：无阻断、2 项建议）：
+  1. FinanceScreen 的 LaunchedEffect 键加 controller（修复 controller 重建后滚动位置残留）；
+  2. 输入框配色提取共享 `screenTextFieldColors()` 入 Theme.kt（CASH 的 I% 框与 ListEditor 单元格去重；TextFieldDefaults.colors 自身是 @Composable，不能包 remember——编译错误已修）；
+  3. ListEditor 表头末列对齐 DEL 按钮（64.dp）；
+  4. 记录不改：CASH/STAT 模式键 68.dp 写死的两端适配（改进项）；CASH/STAT 全键盘化桥接焦点单元格（后续候选）。
 
 ## Task 4：真机走查修复与功能增强（2026-09-10 用户真机反馈）
 
@@ -155,3 +160,33 @@ FinanceController 语义调整（真机 EXE 确认保留，但输入即时生效
 - 真机对照截图复查 4.1 三项；
 - 旋转手势两模式手感；即输即改全流程；
 - 全部测试绿 + assembleDebug。
+
+## Task 5：CASH/STAT 屏可读性 + 变量屏光标跟随滚动（2026-09-11 用户真机反馈）
+
+> 来源：12 张全模式截图（`media/12function/`）+ 滚动问题截图（`media/roll/`）。
+> 走查结论：变量屏（SMPL/CMPD/AMRT/CNVR/COST/DAYS/BOND/DEPR）全部符合预期；DEPR 子模式条正常。
+
+### 5.1 CASH/STAT 编辑区浅色化（截图证据：CASH 屏 I% 输入框数字几乎不可见、"Csh" 表头淡）
+
+- CashModeBody/StatModeBody 的编辑区（上部 Column）背景改 `SCREEN_BG` 浅底，区内文字（I% 标签、ADD/CALC、错误/结果）改 `SCREEN_TXT` 深字；
+- I% 的 OutlinedTextField：文字 `SCREEN_TXT`、边框/光标深色（TextFieldDefaults.colors 显式指定）；
+- `ListEditor`：表头（"Csh"/"X"/"Y"/"FREQ"）与单元格文字改 `SCREEN_TXT`、单元格边框深色、行尾 DEL 按钮文字 `SCREEN_TXT`（ListEditor 仅 CASH/STAT 使用，直接改用 Theme 常量）；
+- NPV/IRR/NFV/PBP 与 STAT 类型选择条按钮：保留 `BTN_NORMAL` 深底浅字（浅屏上的键帽感，视觉统一）。
+
+### 5.2 CASH/STAT 巨型模式键修复（截图证据：两行模式键被 weight 拉成占半屏的竖条）
+
+- `Keypad` 加 `fixedRowHeight: Dp? = null`：非 null 时各行 `Row(Modifier.height(fixedRowHeight))` 替代 `weight(1f)`，外层不再 fillMaxHeight 拉伸；
+- CASH/STAT 两处调用改 `fixedRowHeight = 68.dp` + `wrapContentHeight`：布局改为编辑区 `weight(1f)` 在上、两行模式键固定高度贴底；键区空白留黑（APP_BG）。
+- 后续候选（本次不做）：CASH/STAT 接全键盘 + 数字键桥接焦点单元格（ListEditor 需焦点追踪改造）。
+
+### 5.3 变量屏光标跟随滚动（截图证据：roll/ 两张——光标移到 FV 但页面不跟随，须手动滑）
+
+- `FinanceScreen`：选中行挂 `BringIntoViewRequester`，`LaunchedEffect(controller.selected) { requester.bringIntoView() }`；
+- 交互语义（用户明确指定）：按键/圆盘改变 selected → 页面立即滚回光标所在行；用户手动滑走查看其他选项时不做任何强制滚动（直到下次按键）；
+- 触摸点击选行：该行已在屏上，bringIntoView 无副作用；
+- 结果/错误行保持在列表下方随内容流（不特殊处理）。
+
+### 5.4 验收
+
+- 真机复查 CASH/STAT 可读性与模式键尺寸；CMPD 6 行变量（n/I%/PV/PMT/FV + 设置联动行）按键滚动跟随 + 手动滑走 + 按键回滚；
+- 现有 241 测全绿 + assembleDebug（本任务纯 UI，可不新增测试）。

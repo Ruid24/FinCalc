@@ -1,11 +1,13 @@
 package com.fincalc.app.ui
 
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 /**
  * 全局色板（FC-200V 真机配色，计划 7 Task 3 收口；对照 media/mockup_cmpd.png / mockup_comp.png）。
  * 屏区 = 浅色液晶屏（浅绿灰底 + 深墨字）；机身/键面 = 深色 + shift 黄 / alpha 红印刷标注。
- * CASH/STAT 表格编辑屏仍用深色底，其错误文字用浅红 0xFFFFB4A2（MainActivity 局部字面量，不在本板）。
+ * CASH/STAT 编辑区同属屏区（计划 7 Task 5.1 浅色化）；其按钮行/类型选择条保留 BTN_NORMAL 深底键帽感。
  */
 
 // ── 屏区（浅色液晶屏）──
@@ -21,7 +23,7 @@ val SCREEN_CURSOR = Color(0xFFC83C1E)    // COMP 输入行闪烁光标（红，�
 val APP_BG = Color(0xFF121712)           // 机身底色（屏外区域）
 
 // ── 键帽文字与标注 ──
-val KEY_TEXT = Color(0xFFE8F5E9)         // 键帽主文字；CASH/STAT 深色屏文字同用
+val KEY_TEXT = Color(0xFFE8F5E9)         // 键帽主文字（含圆盘符号；CASH/STAT 屏文字自 Task 5.1 起改用 SCREEN_TXT）
 val KEY_SHIFT_MARK = Color(0xFFF0C040)   // shift 标注黄（真机印刷色）
 val KEY_ALPHA_MARK = Color(0xFFE05544)   // alpha 标注红（真机印刷色）
 val KEY_SHIFT_ACTIVE = Color(0xFF39493B) // SHIFT 激活态键帽底
@@ -42,3 +44,15 @@ val BTN_NORMAL = Color(0xFF2E3B30)
 // ── 菱形方向盘 ──
 val DPAD_BASE = Color(0xFF2C362E)        // 圆形底盘
 val DPAD_KEY = Color(0xFF3A463C)         // 四向键
+
+/** 浅屏输入框配色（CASH 的 I% 框与 ListEditor 单元格共用）：深墨文字/光标，透明容器透出屏底色。 */
+@Composable
+fun screenTextFieldColors() = TextFieldDefaults.colors(
+    focusedTextColor = SCREEN_TXT,
+    unfocusedTextColor = SCREEN_TXT,
+    cursorColor = SCREEN_TXT,
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    focusedIndicatorColor = SCREEN_TXT,
+    unfocusedIndicatorColor = SCREEN_HINT
+)

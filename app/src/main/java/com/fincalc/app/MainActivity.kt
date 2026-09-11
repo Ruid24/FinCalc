@@ -44,7 +44,11 @@ import com.fincalc.app.state.Mode
 import com.fincalc.app.ui.APP_BG
 import com.fincalc.app.ui.BTN_NORMAL
 import com.fincalc.app.ui.KEY_MODE_ACTIVE
-import com.fincalc.app.ui.KEY_TEXT
+import com.fincalc.app.ui.SCREEN_BG
+import com.fincalc.app.ui.SCREEN_ERROR
+import com.fincalc.app.ui.SCREEN_HINT
+import com.fincalc.app.ui.SCREEN_TXT
+import com.fincalc.app.ui.screenTextFieldColors
 import com.fincalc.app.ui.comp.CompController
 import com.fincalc.app.ui.comp.CompScreen
 import com.fincalc.app.ui.comp.Memory
@@ -302,12 +306,15 @@ private fun CashModeBody(state: CalcState) {
         mutableStateOf(NumberFormatter.format(state.getVar("I%"), state.settings.display))
     }
     Column(modifier = Modifier.fillMaxSize().background(APP_BG)) {
-        Column(modifier = Modifier.fillMaxWidth().weight(1f).padding(8.dp)) {
+        // 浅色液晶编辑区（计划 7 Task 5.1）：SCREEN_BG 底 + SCREEN_TXT 深墨字；NPV/IRR/NFV/PBP 行保留键帽深色
+        Column(modifier = Modifier.fillMaxWidth().weight(1f).background(SCREEN_BG).padding(8.dp)) {
+            // I% 输入框显式配色（与 ListEditor 单元格共用）：深墨文字/光标，透明容器透出屏底色
+            val iFieldColors = screenTextFieldColors()
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("I% =", color = KEY_TEXT, fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
+                Text("I% =", color = SCREEN_TXT, fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
                 OutlinedTextField(
                     value = iText,
                     onValueChange = { t ->
@@ -315,7 +322,8 @@ private fun CashModeBody(state: CalcState) {
                         t.trim().toDoubleOrNull()?.let { state.setVar("I%", it) }
                     },
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    singleLine = true,
+                    colors = iFieldColors
                 )
             }
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -327,13 +335,13 @@ private fun CashModeBody(state: CalcState) {
                 )
             }
             TextButton(onClick = { controller.addRow() }) {
-                Text("ADD", color = KEY_TEXT)
+                Text("ADD", color = SCREEN_TXT)
             }
             controller.errorText?.let {
-                Text(it, color = Color(0xFFFFB4A2), fontSize = 18.sp)
+                Text(it, color = SCREEN_ERROR, fontSize = 18.sp)
             }
             controller.resultText?.let {
-                Text(it, color = KEY_TEXT, fontSize = 20.sp)
+                Text(it, color = SCREEN_TXT, fontSize = 20.sp)
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 listOf("NPV", "IRR", "NFV", "PBP").forEach { target ->
@@ -348,7 +356,14 @@ private fun CashModeBody(state: CalcState) {
                 }
             }
         }
-        Keypad(rows = modeKeyRows(state), shift = state.shift, alpha = state.alpha, modifier = Modifier.weight(3f))
+        // 两行模式键：固定行高贴底，勿用 weight（否则两行被拉成半屏巨型键，计划 7 Task 5.2）
+        Keypad(
+            rows = modeKeyRows(state),
+            shift = state.shift,
+            alpha = state.alpha,
+            modifier = Modifier.fillMaxWidth(),
+            fixedRowHeight = 68.dp
+        )
     }
 }
 
@@ -373,7 +388,8 @@ private fun StatModeBody(state: CalcState) {
         if (state.settings.statFreq) add("FREQ")
     }
     Column(modifier = Modifier.fillMaxSize().background(APP_BG)) {
-        Column(modifier = Modifier.fillMaxWidth().weight(1f).padding(8.dp)) {
+        // 浅色液晶编辑区（计划 7 Task 5.1）：SCREEN_BG 底 + SCREEN_TXT 深墨字；类型选择条保留键帽深色
+        Column(modifier = Modifier.fillMaxWidth().weight(1f).background(SCREEN_BG).padding(8.dp)) {
             types.chunked(4).forEach { rowTypes ->
                 Row(modifier = Modifier.fillMaxWidth()) {
                     rowTypes.forEach { (label, type) ->
@@ -412,19 +428,26 @@ private fun StatModeBody(state: CalcState) {
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 TextButton(onClick = { controller.addRow() }) {
-                    Text("ADD", color = KEY_TEXT)
+                    Text("ADD", color = SCREEN_TXT)
                 }
                 TextButton(onClick = { controller.compute() }) {
-                    Text("CALC", color = KEY_TEXT)
+                    Text("CALC", color = SCREEN_TXT)
                 }
             }
             controller.errorText?.let {
-                Text(it, color = Color(0xFFFFB4A2), fontSize = 18.sp)
+                Text(it, color = SCREEN_ERROR, fontSize = 18.sp)
             }
             controller.resultLines.forEach {
-                Text(it, color = KEY_TEXT, fontSize = 14.sp, maxLines = 1)
+                Text(it, color = SCREEN_TXT, fontSize = 14.sp, maxLines = 1)
             }
         }
-        Keypad(rows = modeKeyRows(state), shift = state.shift, alpha = state.alpha, modifier = Modifier.weight(3f))
+        // 两行模式键：固定行高贴底，勿用 weight（否则两行被拉成半屏巨型键，计划 7 Task 5.2）
+        Keypad(
+            rows = modeKeyRows(state),
+            shift = state.shift,
+            alpha = state.alpha,
+            modifier = Modifier.fillMaxWidth(),
+            fixedRowHeight = 68.dp
+        )
     }
 }
